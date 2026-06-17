@@ -14,17 +14,15 @@ spring:
         stdio:
           connections:
             github-mcp:
-              command: npx
+              command: node
               args:
-                - "-y"
-                - "@modelcontextprotocol/server-github"
+                - "node_modules/@modelcontextprotocol/server-github/dist/index.js"
               env:
                 GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN}
             context7-mcp:
-              command: npx
+              command: node
               args:
-                - "-y"
-                - "@upstash/context7-mcp"
+                - "node_modules/@upstash/context7-mcp/dist/index.js"
               env:
                 CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:}
         toolcallback:
