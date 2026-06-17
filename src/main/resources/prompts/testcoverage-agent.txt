@@ -20,7 +20,7 @@ Return ONLY a valid JSON array, no prose, no markdown fences. Each element:
   "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO",
   "category": "test-coverage",
   "filePath": "path/to/File.java",
-  "lineNumber": 42,
+  "lineNumber": 42, // MUST be a line number that was added or modified in the diff. Set to null if the finding applies to the whole file or unchanged context.
   "message": "concise description of the test coverage gap",
   "suggestion": "concrete fix or recommended change"
 }

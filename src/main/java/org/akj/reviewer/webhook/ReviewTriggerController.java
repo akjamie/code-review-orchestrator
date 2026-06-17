@@ -14,10 +14,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 /**
  * REST endpoint to trigger PR reviews using a direct GitHub pull request URL.
  */
 @RestController
+@Tag(name = "Review Trigger", description = "Endpoints to trigger code reviews manually")
 public class ReviewTriggerController {
 
     private static final Logger log = LoggerFactory.getLogger(ReviewTriggerController.class);
@@ -48,6 +52,7 @@ public class ReviewTriggerController {
      * Extracts owner, repo, and PR number from the URL, and executes the review asynchronously.
      */
     @PostMapping("/review/url")
+    @Operation(summary = "Trigger review by GitHub PR URL", description = "Extracts repository parameters from a GitHub Pull Request URL, fetches context, and executes code review asynchronously (running MCP agents or classic pipeline).")
     public ResponseEntity<String> reviewPrUrl(@RequestBody UrlReviewRequest request) {
         if (request.url() == null || request.url().isBlank()) {
             return ResponseEntity.badRequest().body("URL is required");

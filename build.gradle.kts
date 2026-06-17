@@ -36,6 +36,9 @@ dependencies {
     // Jackson JDK8 module for Optional support in records
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.21.4")
 
+    // Swagger / OpenAPI documentation support
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+
     // Spring AI MCP Client — connects to GitHub MCP (stdio) and Context7 MCP (SSE)
     implementation("org.springframework.ai:spring-ai-starter-mcp-client:2.0.0")
 

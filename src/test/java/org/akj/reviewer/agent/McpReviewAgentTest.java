@@ -39,6 +39,7 @@ class McpReviewAgentTest {
 
         // Mock ChatClient.Builder fluent chain
         when(chatClientBuilder.defaultSystem(anyString())).thenReturn(chatClientBuilder);
+        when(chatClientBuilder.defaultAdvisors(any(org.springframework.ai.chat.client.advisor.api.Advisor[].class))).thenReturn(chatClientBuilder);
         when(chatClientBuilder.build()).thenReturn(chatClient);
 
         // Mock ChatClient fluent chain

@@ -1,0 +1,9 @@
+{
+  "name": "code-review-orchestrator-mcp",
+  "version": "1.0.0",
+  "description": "Local MCP dependencies for Code Review Orchestrator",
+  "private": true,
+  "dependencies": {
+    "@modelcontextprotocol/server-github": "^2025.4.8"
+  }
+}

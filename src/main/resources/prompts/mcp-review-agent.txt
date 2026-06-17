@@ -61,3 +61,4 @@ For inline comments, use this format:
 - If you find nothing wrong, say so clearly in the summary — do not force findings.
 - Limit inline comments to genuinely important issues (MEDIUM or above).
 - When looking up documentation, use specific library names and version numbers from the diff (e.g. package.json, build.gradle, pom.xml).
+- **Line Numbers for Inline Comments**: When posting inline comments on GitHub, the `line` parameter MUST refer to a line number that is actually modified, added, or deleted in the PR diff (i.e. it must be part of a diff hunk). Unchanged lines or lines outside the diff hunks cannot accept inline comments and will cause a GitHub API validation error (`Line could not be resolved`). If a finding is located on an unchanged line, refer to it in the overall review summary comment or associate it with the nearest modified/added line.

@@ -62,6 +62,7 @@ The app listens on:
 | `http://localhost:8080/review/local` | POST | Local E2E testing (see below) |
 | `http://localhost:8080/review/url` | POST | Trigger a review by PR URL |
 | `http://localhost:8080/health` | GET | Health check |
+| `http://localhost:8080/swagger-ui/index.html` | GET | Interactive Swagger UI API documentation |
 
 
 ---

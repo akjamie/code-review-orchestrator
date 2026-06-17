@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 /**
  * Local-only endpoint for E2E testing without GitHub webhooks.
  * Accepts a diff payload directly and runs the review pipeline,
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * local development.
  */
 @RestController
+@Tag(name = "Local Review", description = "Endpoints for local testing without external webhooks or GitHub APIs")
 public class LocalReviewController {
 
     private static final Logger log = LoggerFactory.getLogger(LocalReviewController.class);
@@ -46,6 +50,7 @@ public class LocalReviewController {
      *     }'
      */
     @PostMapping("/review/local")
+    @Operation(summary = "Review raw diff locally", description = "Accepts a raw Git diff payload, runs the classic 4-agent review pipeline, and returns the unified review findings as JSON without modifying or posting to GitHub.")
     public ResponseEntity<ReviewResult> reviewLocal(@RequestBody LocalReviewRequest request) {
         log.info("Running local review: {}", request.title());
 

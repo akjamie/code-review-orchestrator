@@ -55,6 +55,22 @@ Write-Host "✓ GITHUB_TOKEN      = $($env:GITHUB_TOKEN.Substring(0, [Math]::Min
 Write-Host "✓ GITHUB_WEBHOOK_SECRET = $($env:GITHUB_WEBHOOK_SECRET.Substring(0, [Math]::Min(4, $env:GITHUB_WEBHOOK_SECRET.Length)))..." -ForegroundColor Green
 Write-Host ""
 if (-not $NoRun) {
+    # Check and install local MCP npm dependencies if node_modules is missing
+    $nodeModules = Join-Path $PSScriptRoot "node_modules"
+    if (-not (Test-Path $nodeModules)) {
+        Write-Host "node_modules not found. Running npm install to set up local MCP servers..." -ForegroundColor Cyan
+        if (Get-Command npm -ErrorAction SilentlyContinue) {
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "WARNING: npm install failed. The app might fail to start if it cannot download the MCP server on-the-fly." -ForegroundColor Yellow
+            } else {
+                Write-Host "✓ Local MCP dependencies installed successfully." -ForegroundColor Green
+            }
+        } else {
+            Write-Host "WARNING: npm command not found. Make sure Node.js is installed." -ForegroundColor Yellow
+        }
+    }
+
     Write-Host "Starting ReviewerApplication ..." -ForegroundColor Cyan
     Write-Host ""
     & "$PSScriptRoot\gradlew.bat" bootRun

@@ -48,6 +48,10 @@ public class GitHubReviewPoster {
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("Review posted to {}/pull/{} (HTTP {})", repoFullName, prNumber, response.statusCode());
+            } else if (response.statusCode() == 422 && findings != null && !findings.isEmpty()) {
+                log.warn("Failed to post review with inline comments (HTTP 422: {}). Retrying with summary only...",
+                    response.body().substring(0, Math.min(300, response.body().length())));
+                postReview(repoFullName, prNumber, reviewBody, List.of());
             } else {
                 log.warn("Failed to post review: HTTP {} - {}", response.statusCode(),
                     response.body().substring(0, Math.min(500, response.body().length())));

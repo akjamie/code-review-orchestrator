@@ -78,6 +78,7 @@ public class McpReviewAgent {
             // Build a ChatClient with MCP tools registered for this request
             ChatClient client = chatClientBuilder
                     .defaultSystem(systemPrompt)
+                    .defaultAdvisors(new org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor())
                     .build();
 
             String result = client.prompt()

@@ -23,7 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import org.akj.reviewer.agent.McpReviewAgent;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
+@Tag(name = "GitHub Webhook", description = "Endpoints to receive and process automated webhooks from GitHub")
 public class GitHubWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(GitHubWebhookController.class);
@@ -64,6 +68,7 @@ public class GitHubWebhookController {
     }
 
     @PostMapping("/webhook/github")
+    @Operation(summary = "GitHub webhook event receiver", description = "Verifies the HMAC-SHA256 signature and handles pull request events. Queues a review run asynchronously if the action is opened, synchronize, or reopened.")
     public ResponseEntity<String> handleWebhook(
             @RequestHeader("X-Hub-Signature-256") String signatureHeader,
             @RequestHeader("X-GitHub-Event") String eventType,
