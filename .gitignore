@@ -1,0 +1,116 @@
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Build
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+gradle-app.setting
+target/
+dist/
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Runtime
+.env
+.env.local
+.env.*.local
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Compiler
+*.class
+*.o
+*.so
+*.lo
+
+# Maven
+pom.xml.tag
+pom.xml.asc
+pom.xml.releaseBackup
+release.properties
+dependency-reduced-pom.xml
+
+# Gradle (detailed)
+.gradle
+gradlew
+gradlew.bat
+gradle/
+*.gradle
+
+# Spring Boot
+application-dev.yml
+application-prod.yml
+application-test.yml
+/src/main/resources/application-local.yml
+
+# Test coverage
+coverage/
+jacoco.exec
+cobertura.xml
+
+# Node (if any frontend build)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Misc
+.jenv
+.tool-versions
+*.orig
+.tmp/
+temp/
+
+# Secrets (never commit)
+.env
+.env.*.local
+secrets/
+*.pem
+*.key
+*.jks
+
+# IntelliJ
+out/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+bin/
+.metadata/
+.factorypath
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# VS Code
+.vscode/
+launch.json
+settings.json
+tasks.json
+
+# OS
+.DS_Store
+Thumbs.db

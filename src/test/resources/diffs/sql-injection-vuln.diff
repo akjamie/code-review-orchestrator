@@ -1,0 +1,56 @@
+diff --git a/src/main/java/com/example/app/repository/UserRepository.java b/src/main/java/com/example/app/repository/UserRepository.java
+index abc123..def456 100644
+--- a/src/main/java/com/example/app/repository/UserRepository.java
++++ b/src/main/java/com/example/app/repository/UserRepository.java
+@@ -3,9 +3,14 @@
+ public class UserRepository {
+     private final DataSource dataSource;
+
+-    public User findByUsername(String username) {
+-        String query = "SELECT * FROM users WHERE username = '" + username + "'";
++    public User findById(String id) {
++        String query = "SELECT * FROM users WHERE id = ?";
+         return jdbcTemplate.queryForObject(query, User.class);
+     }
++
++    public User findByUsername(String username) {
++        String query = "SELECT * FROM users WHERE username = '" + username + "'";
++        return jdbcTemplate.queryForObject(query, User.class);
++    }
+ }
+diff --git a/src/main/java/com/example/app/service/AuthService.java b/src/main/java/com/example/app/service/AuthService.java
+new file mode 100644
+index 000000..789ghi
+--- /dev/null
++++ b/src/main/java/com/example/app/service/AuthService.java
+@@ -0,0 +1,30 @@
++package com.example.app.service;
++
++import java.sql.Connection;
++import java.sql.ResultSet;
++import java.sql.Statement;
++
++public class AuthService {
++    private final Database db;
++
++    public AuthService(Database db) {
++        this.db = db;
++    }
++
++    public boolean authenticate(String username, String password) {
++        Statement stmt = db.getConnection().createStatement();
++        String query = "SELECT * FROM users WHERE username='" + username + "' AND password='" + password + "'";
++        ResultSet rs = stmt.executeQuery(query);
++        return rs.next();
++    }
++
++    public void deleteUser(String userId) {
++        Connection conn = db.getConnection();
++        Statement stmt = conn.createStatement();
++        stmt.execute("DELETE FROM users WHERE id = " + userId);
++    }
++
++    public String getSecretKey() {
++        return "sk-live-abcdefghijklmnopqrstuvwxyz123456";
++    }
++}

@@ -1,0 +1,69 @@
+diff --git a/src/main/java/com/example/app/service/UserService.java b/src/main/java/com/example/app/service/UserService.java
+index abc123..def456 100644
+--- a/src/main/java/com/example/app/service/UserService.java
++++ b/src/main/java/com/example/app/service/UserService.java
+@@ -10,15 +10,12 @@
+ public class UserService {
+     private final UserRepository userRepository;
+
+-    public User findUser(String id) {
+-        // old implementation
+-        return userRepository.findById(id);
+-    }
+-
+     public List<User> findAllUsers() {
+         return userRepository.findAll();
+     }
+
++    public User findUser(String id) {
++        return userRepository.findById(id).orElse(null);
++    }
+ }
+diff --git a/src/main/java/com/example/app/model/User.java b/src/main/java/com/example/app/model/User.java
+index 789ghi..012jkl 100644
+--- a/src/main/java/com/example/app/model/User.java
++++ b/src/main/java/com/example/app/model/User.java
+@@ -1,10 +1,12 @@
+ package com.example.app.model;
+
+ public class User {
+-    private String name;
++    private final String name;
++    private final String email;
+
+-    public String getName() { return name; }
++    public User(String name, String email) {
++        this.name = name;
++        this.email = email;
++    }
+
+-    public void setName(String name) { this.name = name; }
++    public String getName() { return name; }
++    public String getEmail() { return email; }
+ }
+diff --git a/src/main/java/com/example/app/controller/UserController.java b/src/main/java/com/example/app/controller/UserController.java
+new file mode 100644
+index 000000..345mno
+--- /dev/null
++++ b/src/main/java/com/example/app/controller/UserController.java
+@@ -0,0 +1,20 @@
++package com.example.app.controller;
++
++import com.example.app.service.UserService;
++import org.springframework.web.bind.annotation.*;
++
++@RestController
++@RequestMapping("/users")
++public class UserController {
++
++    private final UserService userService;
++
++    public UserController(UserService userService) {
++        this.userService = userService;
++    }
++
++    @GetMapping
++    public List<User> getAllUsers() {
++        return userService.findAllUsers();
++    }
++}

@@ -1,0 +1,57 @@
+spring:
+  threads:
+    virtual:
+      enabled: true
+  ai:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}
+      chat:
+        model: ${MODEL_NAME:deepseek-chat}
+        temperature: 0.3
+    mcp:
+      client:
+        # GitHub MCP server — launched locally via npx (stdio transport)
+        stdio:
+          connections:
+            github-mcp:
+              command: npx
+              args:
+                - "-y"
+                - "@modelcontextprotocol/server-github"
+              env:
+                GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN}
+        # Context7 MCP server — connected remotely via SSE (comment out / disabled by default to prevent startup timeout crashes)
+        # sse:
+        #   connections:
+        #     context7-mcp:
+        #       url: https://mcp.context7.com/mcp
+        toolcallback:
+          enabled: true
+
+review:
+  agents:
+    max-tokens: 4096
+    timeout-seconds: 120
+    enabled:
+      security: true
+      performance: true
+      style: true
+      test-coverage: true
+  synthesizer:
+    max-tokens: 8192
+  # MCP Review Agent settings
+  mcp-agent:
+    enabled: true
+    max-tokens: 8192
+    model: ${MCP_MODEL_NAME:${MODEL_NAME:deepseek-chat}}
+  # Background polling monitor settings
+  polling:
+    enabled: ${POLLING_ENABLED:false}
+    interval-seconds: ${POLLING_INTERVAL_SECONDS:60}
+  # Comma-separated list of repos to monitor (e.g. "owner/repo1,owner/repo2")
+  # Leave empty to allow all repos
+  monitored-repos: ${MONITORED_REPOS:}
+
+github:
+  webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
+  token: ${GITHUB_TOKEN}

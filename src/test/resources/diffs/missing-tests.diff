@@ -1,0 +1,95 @@
+diff --git a/src/main/java/com/example/app/service/OrderService.java b/src/main/java/com/example/app/service/OrderService.java
+new file mode 100644
+index 000000..abc123
+--- /dev/null
++++ b/src/main/java/com/example/app/service/OrderService.java
+@@ -0,0 +1,45 @@
++package com.example.app.service;
++
++import com.example.app.model.Order;
++import com.example.app.model.OrderItem;
++import com.example.app.repository.OrderRepository;
++import java.math.BigDecimal;
++import java.util.List;
++
++public class OrderService {
++
++    private final OrderRepository orderRepository;
++    private final PricingService pricingService;
++
++    public OrderService(OrderRepository orderRepository, PricingService pricingService) {
++        this.orderRepository = orderRepository;
++        this.pricingService = pricingService;
++    }
++
++    public BigDecimal calculateTotal(Order order) {
++        BigDecimal total = BigDecimal.ZERO;
++        for (OrderItem item : order.getItems()) {
++            PricingService price = pricingService.getPricing(item.getProductId());
++            total = total.add(price.getBasePrice().multiply(BigDecimal.valueOf(item.getQuantity())));
++        }
++        return total;
++    }
++
++    public boolean hasHighValueItems(Order order) {
++        for (OrderItem item : order.getItems()) {
++            PricingService price = pricingService.getPricing(item.getProductId());
++            if (price.getBasePrice().compareTo(BigDecimal.valueOf(1000)) > 0) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    public Order saveOrder(Order order) {
++        if (order.getItems().isEmpty()) {
++            throw new IllegalArgumentException("Order must have at least one item");
++        }
++        order.setTotal(calculateTotal(order));
++        return orderRepository.save(order);
++    }
++}
+diff --git a/src/test/java/com/example/app/service/OrderServiceTest.java b/src/test/java/com/example/app/service/OrderServiceTest.java
+new file mode 100644
+index 000000..def456
+--- /dev/null
++++ b/src/test/java/com/example/app/service/OrderServiceTest.java
+@@ -0,0 +1,18 @@
++package com.example.app.service;
++
++import com.example.app.model.Order;
++import com.example.app.model.OrderItem;
++import org.junit.jupiter.api.Test;
++import static org.junit.jupiter.api.Assertions.*;
++
++class OrderServiceTest {
++
++    @Test
++    void testSaveOrder() {
++        Order order = new Order();
++        order.addItem(new OrderItem("product-1", 1));
++        OrderService service = new OrderService(null, null);
++        assertNotNull(service.saveOrder(order));
++    }
++}
+diff --git a/src/main/java/com/example/app/model/Order.java b/src/main/java/com/example/app/model/Order.java
+new file mode 100644
+index 000000..ghi789
+--- /dev/null
++++ b/src/main/java/com/example/app/model/Order.java
+@@ -0,0 +1,15 @@
++package com.example.app.model;
++
++import java.math.BigDecimal;
++import java.util.ArrayList;
++import java.util.List;
++
++public class Order {
++    private List<OrderItem> items = new ArrayList<>();
++    private BigDecimal total;
++
++    public List<OrderItem> getItems() { return items; }
++    public void addItem(OrderItem item) { items.add(item); }
++    public BigDecimal getTotal() { return total; }
++    public void setTotal(BigDecimal total) { this.total = total; }
++}
