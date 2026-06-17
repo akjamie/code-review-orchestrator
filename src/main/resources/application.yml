@@ -10,6 +10,7 @@ spring:
         temperature: 0.3
     mcp:
       client:
+        request-timeout: 45s
         # Local stdio connections for MCP servers
         stdio:
           connections:
