@@ -111,6 +111,10 @@ launch.json
 settings.json
 tasks.json
 
+# MCP extracted sources (build artifacts)
+/io/
+/org/
+
 # OS
 .DS_Store
 Thumbs.db

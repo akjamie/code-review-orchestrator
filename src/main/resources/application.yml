@@ -10,7 +10,7 @@ spring:
         temperature: 0.3
     mcp:
       client:
-        request-timeout: 45s
+        request-timeout: PT45S
         # Local stdio connections for MCP servers
         stdio:
           connections:
@@ -54,6 +54,8 @@ review:
   # Comma-separated list of repos to monitor (e.g. "owner/repo1,owner/repo2")
   # Leave empty to allow all repos
   monitored-repos: ${MONITORED_REPOS:}
+  # Skip review runs if there are pending/unresolved comments on the PR
+  skip-on-unresolved-comments: ${SKIP_ON_UNRESOLVED_COMMENTS:true}
 
 github:
   webhook-secret: ${GITHUB_WEBHOOK_SECRET:}

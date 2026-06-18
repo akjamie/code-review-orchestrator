@@ -43,6 +43,7 @@ public class GitHubWebhookController {
     private final Set<String> monitoredRepos;
     private final boolean allowAllRepos;
     private final McpReviewAgent mcpReviewAgent; // null when review.mcp-agent.enabled=false
+    private final boolean skipOnUnresolved;
 
     public GitHubWebhookController(org.akj.reviewer.config.GitHubConfig gitHubConfig,
                                    ObjectMapper objectMapper,
@@ -50,6 +51,7 @@ public class GitHubWebhookController {
                                    ReviewPipeline pipeline,
                                    GitHubReviewPoster reviewPoster,
                                    @Value("${review.monitored-repos:}") String monitoredReposCsv,
+                                   @Value("${review.skip-on-unresolved-comments:true}") boolean skipOnUnresolved,
                                    @Autowired(required = false) McpReviewAgent mcpReviewAgent) {
         this.webhookSecret = gitHubConfig.getWebhookSecret();
         this.objectMapper = objectMapper;
@@ -57,6 +59,7 @@ public class GitHubWebhookController {
         this.pipeline = pipeline;
         this.reviewPoster = reviewPoster;
         this.mcpReviewAgent = mcpReviewAgent;
+        this.skipOnUnresolved = skipOnUnresolved;
 
         if (monitoredReposCsv == null || monitoredReposCsv.isBlank()) {
             this.monitoredRepos = Set.of();
@@ -131,6 +134,11 @@ public class GitHubWebhookController {
     }
 
     private void processReview(String repoFullName, int prNumber, String prTitle, String prDescription) {
+        if (skipOnUnresolved && diffFetcher.hasUnresolvedThreads(repoFullName, prNumber)) {
+            log.info("Skipping review for {}/pull/{} because there are unresolved review comments", repoFullName, prNumber);
+            return;
+        }
+
         if (mcpReviewAgent != null) {
             log.info("Routing to MCP review agent for {}/pull/{}", repoFullName, prNumber);
             try {
@@ -164,16 +172,6 @@ public class GitHubWebhookController {
             String org = payload.get("organization").get("login").asText();
             String repo = payload.get("repository").get("name").asText();
             return org + "/" + repo;
-        }
-        return null;
-    }
-
-    /**
-     * Extract the repo name from an org-level webhook payload.
-     */
-    private String extractRepoName(JsonNode payload) {
-        if (payload.has("repository")) {
-            return payload.get("repository").get("name").asText();
         }
         return null;
     }

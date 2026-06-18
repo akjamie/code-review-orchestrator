@@ -36,6 +36,9 @@ class GitHubApiMonitorTest {
     @Mock
     private HttpResponse<String> httpResponse;
 
+    @Mock
+    private GitHubDiffFetcher diffFetcher;
+
     private ObjectMapper objectMapper;
 
     @BeforeEach
@@ -64,6 +67,7 @@ class GitHubApiMonitorTest {
                 .thenReturn(httpResponse);
 
         when(seenPrTracker.hasBeenSeen("owner/repo", 42, "sha123456")).thenReturn(false);
+        when(diffFetcher.hasUnresolvedThreads("owner/repo", 42)).thenReturn(false);
 
         // CountDownLatch to coordinate virtual threads during test
         CountDownLatch latch = new CountDownLatch(1);
@@ -72,7 +76,7 @@ class GitHubApiMonitorTest {
             return null;
         }).when(mcpReviewAgent).reviewPr("owner/repo", 42);
 
-        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, httpClient, "owner/repo");
+        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, httpClient, "owner/repo", true);
         monitor.poll();
 
         // Wait for virtual thread to invoke the review agent
@@ -104,10 +108,40 @@ class GitHubApiMonitorTest {
 
         when(seenPrTracker.hasBeenSeen("owner/repo", 42, "sha123456")).thenReturn(true);
 
-        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, httpClient, "owner/repo");
+        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, httpClient, "owner/repo", true);
         monitor.poll();
 
         // Should check, but not trigger agent or mark seen again
+        verify(seenPrTracker, never()).markSeen(anyString(), anyInt(), anyString());
+        verify(mcpReviewAgent, never()).reviewPr(anyString(), anyInt());
+    }
+
+    @Test
+    void testPollSkipsPrWithUnresolvedComments() throws Exception {
+        String json = """
+            [
+              {
+                "number": 42,
+                "title": "Add new feature",
+                "head": {
+                  "sha": "sha123456"
+                }
+              }
+            ]
+            """;
+
+        when(httpResponse.statusCode()).thenReturn(200);
+        when(httpResponse.body()).thenReturn(json);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
+
+        when(seenPrTracker.hasBeenSeen("owner/repo", 42, "sha123456")).thenReturn(false);
+        when(diffFetcher.hasUnresolvedThreads("owner/repo", 42)).thenReturn(true);
+
+        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, httpClient, "owner/repo", true);
+        monitor.poll();
+
+        // Should check, but not trigger agent or mark seen because of unresolved comments
         verify(seenPrTracker, never()).markSeen(anyString(), anyInt(), anyString());
         verify(mcpReviewAgent, never()).reviewPr(anyString(), anyInt());
     }

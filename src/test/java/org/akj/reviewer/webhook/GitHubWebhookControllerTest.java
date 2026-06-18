@@ -45,7 +45,7 @@ class GitHubWebhookControllerTest {
         when(gitHubConfig.getWebhookSecret()).thenReturn(WEBHOOK_SECRET);
         // Allow all repos by default
         controller = new GitHubWebhookController(gitHubConfig, objectMapper,
-            diffFetcher, pipeline, reviewPoster, "", null);
+            diffFetcher, pipeline, reviewPoster, "", false, null);
     }
 
     @Test
@@ -122,7 +122,7 @@ class GitHubWebhookControllerTest {
 
         // Create controller with specific repo filter
         var filteredController = new GitHubWebhookController(gitHubConfig, objectMapper,
-            diffFetcher, pipeline, reviewPoster, "my-org/my-repo", null);
+            diffFetcher, pipeline, reviewPoster, "my-org/my-repo", false, null);
 
         ResponseEntity<String> response = filteredController.handleWebhook(
             signature,
@@ -156,6 +156,35 @@ class GitHubWebhookControllerTest {
 
         assertEquals(200, response.getStatusCode().value());
         assertTrue(response.getBody().contains("Review queued"));
+    }
+
+    @Test
+    void skipsReviewWhenUnresolvedCommentsExist() throws Exception {
+        String payload = """
+            {
+              "action": "opened",
+              "number": 1,
+              "repository": {"full_name": "owner/repo"},
+              "pull_request": {"title": "Test PR", "body": "Description"}
+            }
+            """;
+        byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+        String signature = computeHmac(body);
+
+        when(diffFetcher.hasUnresolvedThreads("owner/repo", 1)).thenReturn(true);
+
+        var skipController = new GitHubWebhookController(gitHubConfig, objectMapper,
+            diffFetcher, pipeline, reviewPoster, "", true, null);
+
+        ResponseEntity<String> response = skipController.handleWebhook(
+            signature,
+            "pull_request",
+            body
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        verify(diffFetcher, timeout(2000)).hasUnresolvedThreads("owner/repo", 1);
+        verifyNoInteractions(pipeline);
     }
 
     private String computeHmac(byte[] body) throws Exception {
