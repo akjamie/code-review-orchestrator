@@ -10,6 +10,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Set;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.akj.reviewer.config.GitHubConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,37 +30,39 @@ class GitHubDiffFetcherTest {
     @Mock
     private HttpResponse<String> httpResponse;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Test
     void detectsJavaFromJavaFiles() {
-        var fetcher = new GitHubDiffFetcher(gitHubConfig);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, objectMapper);
         var files = List.of("src/main/java/com/example/App.java", "src/main/java/com/example/Util.java");
         assertEquals(Set.of("Java"), fetcher.detectLanguages(files));
     }
 
     @Test
     void detectsPythonFromPyFiles() {
-        var fetcher = new GitHubDiffFetcher(gitHubConfig);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, objectMapper);
         var files = List.of("app.py", "tests/test_app.py", "requirements.txt");
         assertEquals(Set.of("Python"), fetcher.detectLanguages(files));
     }
 
     @Test
     void detectsMultipleLanguages() {
-        var fetcher = new GitHubDiffFetcher(gitHubConfig);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, objectMapper);
         var files = List.of("src/main/java/App.java", "src/script.py", "frontend/app.js");
         assertEquals(Set.of("Java", "Python", "JavaScript"), fetcher.detectLanguages(files));
     }
 
     @Test
     void returnsEmptyForUnknownExtensions() {
-        var fetcher = new GitHubDiffFetcher(gitHubConfig);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, objectMapper);
         var files = List.of("Makefile", "Dockerfile", ".gitignore");
         assertEquals(Set.of(), fetcher.detectLanguages(files));
     }
 
     @Test
     void handlesEmptyFileList() {
-        var fetcher = new GitHubDiffFetcher(gitHubConfig);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, objectMapper);
         assertEquals(Set.of(), fetcher.detectLanguages(List.of()));
     }
 
@@ -72,7 +76,7 @@ class GitHubDiffFetcherTest {
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenReturn(httpResponse);
 
-        var fetcher = new GitHubDiffFetcher(gitHubConfig, httpClient);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, httpClient, objectMapper);
         var details = fetcher.fetchPrDetails("owner/repo", 42);
 
         assertEquals("My PR Title", details.title());
@@ -87,7 +91,7 @@ class GitHubDiffFetcherTest {
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenReturn(httpResponse);
 
-        var fetcher = new GitHubDiffFetcher(gitHubConfig, httpClient);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, httpClient, objectMapper);
         assertThrows(IOException.class, () -> fetcher.fetchPrDetails("owner/repo", 42));
     }
 
@@ -116,7 +120,7 @@ class GitHubDiffFetcherTest {
             .thenReturn(diffResponse)
             .thenReturn(filesResponse);
 
-        var fetcher = new GitHubDiffFetcher(gitHubConfig, httpClient);
+        var fetcher = new GitHubDiffFetcher(gitHubConfig, httpClient, objectMapper);
         var context = fetcher.fetchContext("owner/repo", 42);
 
         assertNotNull(context);

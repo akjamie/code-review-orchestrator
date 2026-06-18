@@ -45,14 +45,18 @@ public class GitHubApiMonitor {
     private final McpReviewAgent mcpReviewAgent;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final GitHubDiffFetcher diffFetcher;
+    private final boolean skipOnUnresolved;
 
     public GitHubApiMonitor(
             GitHubConfig gitHubConfig,
             SeenPrTracker seenPrTracker,
             McpReviewAgent mcpReviewAgent,
             ObjectMapper objectMapper,
-            @Value("${review.monitored-repos:}") String monitoredReposCsv) {
-        this(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, HttpClient.newHttpClient(), monitoredReposCsv);
+            GitHubDiffFetcher diffFetcher,
+            @Value("${review.monitored-repos:}") String monitoredReposCsv,
+            @Value("${review.skip-on-unresolved-comments:true}") boolean skipOnUnresolved) {
+        this(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, HttpClient.newHttpClient(), monitoredReposCsv, skipOnUnresolved);
     }
 
     // Package-private constructor for testing
@@ -61,13 +65,17 @@ public class GitHubApiMonitor {
             SeenPrTracker seenPrTracker,
             McpReviewAgent mcpReviewAgent,
             ObjectMapper objectMapper,
+            GitHubDiffFetcher diffFetcher,
             HttpClient httpClient,
-            String monitoredReposCsv) {
+            String monitoredReposCsv,
+            boolean skipOnUnresolved) {
         this.token = gitHubConfig.getToken();
         this.seenPrTracker = seenPrTracker;
         this.mcpReviewAgent = mcpReviewAgent;
         this.objectMapper = objectMapper;
         this.httpClient = httpClient;
+        this.diffFetcher = diffFetcher;
+        this.skipOnUnresolved = skipOnUnresolved;
 
         if (monitoredReposCsv == null || monitoredReposCsv.isBlank()) {
             this.monitoredRepos = Set.of();
@@ -115,6 +123,11 @@ public class GitHubApiMonitor {
         for (PrInfo pr : openPrs) {
             if (seenPrTracker.hasBeenSeen(repoFullName, pr.number(), pr.headSha())) {
                 log.debug("  Skipping already-reviewed PR #{} (sha={})", pr.number(), pr.headSha());
+                continue;
+            }
+
+            if (skipOnUnresolved && diffFetcher.hasUnresolvedThreads(repoFullName, pr.number())) {
+                log.info("  Skipping PR #{} in {} because there are unresolved review comments", pr.number(), repoFullName);
                 continue;
             }
 

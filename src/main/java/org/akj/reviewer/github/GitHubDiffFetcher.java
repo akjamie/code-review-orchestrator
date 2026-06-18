@@ -53,16 +53,18 @@ public class GitHubDiffFetcher {
 
     private final HttpClient httpClient;
     private final String token;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public GitHubDiffFetcher(org.akj.reviewer.config.GitHubConfig gitHubConfig) {
-        this(gitHubConfig, HttpClient.newHttpClient());
+    public GitHubDiffFetcher(org.akj.reviewer.config.GitHubConfig gitHubConfig, ObjectMapper objectMapper) {
+        this(gitHubConfig, HttpClient.newHttpClient(), objectMapper);
     }
 
     // Package-private constructor for testing
-    GitHubDiffFetcher(org.akj.reviewer.config.GitHubConfig gitHubConfig, HttpClient httpClient) {
+    GitHubDiffFetcher(org.akj.reviewer.config.GitHubConfig gitHubConfig, HttpClient httpClient, ObjectMapper objectMapper) {
         this.httpClient = httpClient;
         this.token = gitHubConfig.getToken();
+        this.objectMapper = objectMapper;
     }
 
 
@@ -83,8 +85,7 @@ public class GitHubDiffFetcher {
             throw new IOException("GitHub API returned " + response.statusCode() + " when fetching PR details: " + response.body());
         }
 
-        var mapper = new ObjectMapper();
-        var root = mapper.readTree(response.body());
+        var root = objectMapper.readTree(response.body());
         String title = root.path("title").asText("");
         String body = root.path("body").asText("");
         return new PrDetails(title, body);
@@ -177,12 +178,86 @@ public class GitHubDiffFetcher {
 
     private List<String> parseFilenames(String jsonBody) {
         try {
-            var mapper = new ObjectMapper();
-            var root = mapper.readTree(jsonBody);
+            var root = objectMapper.readTree(jsonBody);
             return root.findValuesAsText("filename");
         } catch (Exception e) {
             log.warn("Failed to parse changed files JSON, returning empty list", e);
             return List.of();
         }
+    }
+
+    public boolean hasUnresolvedThreads(String repoFullName, int prNumber) {
+        String[] parts = repoFullName.split("/", 2);
+        if (parts.length < 2) {
+            log.warn("Invalid repository name: {}", repoFullName);
+            return false;
+        }
+        String owner = parts[0];
+        String name = parts[1];
+
+        String query = """
+            query($owner: String!, $name: String!, $pr: Int!) {
+              repository(owner: $owner, name: $name) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        try {
+            var variables = objectMapper.createObjectNode();
+            variables.put("owner", owner);
+            variables.put("name", name);
+            variables.put("pr", prNumber);
+
+            var bodyNode = objectMapper.createObjectNode();
+            bodyNode.put("query", query);
+            bodyNode.set("variables", variables);
+
+            String requestBody = objectMapper.writeValueAsString(bodyNode);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.github.com/graphql"))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.warn("GraphQL query failed with status {}: {}", response.statusCode(), response.body());
+                return false;
+            }
+
+            var root = objectMapper.readTree(response.body());
+            var errors = root.path("errors");
+            if (!errors.isMissingNode() && errors.isArray() && !errors.isEmpty()) {
+                log.warn("GraphQL errors returned: {}", errors);
+            }
+
+            var nodes = root.path("data")
+                .path("repository")
+                .path("pullRequest")
+                .path("reviewThreads")
+                .path("nodes");
+
+            if (nodes.isArray()) {
+                for (var node : nodes) {
+                    if (!node.path("isResolved").asBoolean(false)) {
+                        log.info("Found unresolved review thread in {}#{}", repoFullName, prNumber);
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to check for unresolved review threads for PR {}#{}", repoFullName, prNumber, e);
+        }
+        return false;
     }
 }

@@ -10,7 +10,7 @@ When a GitHub PR is opened or updated, this system:
 
 1. **Receives** the webhook from GitHub
 2. **Fetches** the full diff and metadata
-3. **Fans out** to 4 specialist agents running in parallel (using Virtual Threads)
+3. **Fans out** to 4 specialist agents running in parallel (using Virtual Threads), OR delegates to a unified **MCP Review Agent** if configured.
 4. **Collects** findings from each agent
 5. **Synthesizes** the results into a single Markdown review
 6. **Posts** the review back to the PR as a GitHub comment
@@ -28,6 +28,7 @@ Each agent focuses on a single concern:
 - Node.js ≥ 18 + `npx` (required to launch the local GitHub MCP server subprocess)
 - GitHub PAT with `repo` and `pull_requests` scopes (used by the review poster and GitHub MCP server)
 - DeepSeek API key
+- (Optional) Context7 MCP server integration for enterprise knowledge
 
 ### Environment Setup
 
@@ -182,6 +183,14 @@ GitHubReviewPoster (POST /pulls/{pr}/reviews)
       ↓
 GitHub PR ← review comment posted
 ```
+
+### MCP Integration (Context7 & GitHub)
+
+The system supports the **Model Context Protocol (MCP)**, allowing agents to use external tools dynamically.
+- **GitHub MCP**: Enables the agent to read PR files, fetch comments, and directly push reviews.
+- **Context7 MCP**: (Optional) Provides web search and enterprise context retrieval, significantly enhancing the review process by allowing the agent to verify library usage, look up CVEs, or check internal docs.
+
+When `review.mcp-agent.enabled=true`, the webhook can route the PR URL directly to the `McpReviewAgent`, which autonomously uses these MCP tools to perform the review instead of relying solely on the 4 static agents.
 
 ### Key Design Decisions
 

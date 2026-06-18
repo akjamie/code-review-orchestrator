@@ -1,5 +1,7 @@
 package org.akj.reviewer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -7,6 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 public class ReviewerApplication {
+
+    private static final Logger log = LoggerFactory.getLogger(ReviewerApplication.class);
 
     public static void main(String[] args) {
         // Configure proxy from environment variables if present
@@ -16,7 +20,7 @@ public class ReviewerApplication {
         if (osName.contains("win")) {
             System.setProperty("spring.ai.mcp.client.stdio.connections.github-mcp.command", "npx.cmd");
             System.setProperty("spring.ai.mcp.client.stdio.connections.context7-mcp.command", "npx.cmd");
-            System.out.println(">>> Detected Windows OS: Overridden github-mcp and context7-mcp commands to 'npx.cmd'");
+            log.info("Detected Windows OS: overriding github-mcp and context7-mcp commands to 'npx.cmd'");
         }
         SpringApplication.run(ReviewerApplication.class, args);
     }
@@ -53,10 +57,10 @@ public class ReviewerApplication {
                 if (port != -1) {
                     System.setProperty(protocol + ".proxyPort", String.valueOf(port));
                 }
-                System.out.println(">>> Configured " + protocol + " proxy: host=" + host + ", port=" + (port != -1 ? port : "default"));
+                log.info("Configured {} proxy: host={}, port={}", protocol, host, port != -1 ? port : "default");
             }
         } catch (Exception e) {
-            System.err.println(">>> Failed to parse proxy URL '" + proxyUrl + "': " + e.getMessage());
+            log.error("Failed to parse proxy URL '{}': {}", proxyUrl, e.getMessage());
         }
     }
 }
