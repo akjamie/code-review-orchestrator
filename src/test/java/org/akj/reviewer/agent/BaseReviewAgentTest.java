@@ -50,7 +50,7 @@ class BaseReviewAgentTest {
 
         mockFluentChain(jsonResponse);
 
-        AgentContext ctx = new AgentContext("owner/repo", 1, "Test PR", "",
+        AgentContext ctx = new AgentContext("owner/repo", 1, "Test PR", "", "author",
             "diff", List.of("Test.java"), false, Set.of("Java"));
 
         AgentResult result = agent.review(ctx);
@@ -83,7 +83,7 @@ class BaseReviewAgentTest {
 
         mockFluentChain(wrappedJson);
 
-        AgentContext ctx = new AgentContext("owner/repo", 1, "Test PR", "",
+        AgentContext ctx = new AgentContext("owner/repo", 1, "Test PR", "", "author",
             "diff", List.of("App.java"), false, Set.of("Java"));
 
         AgentResult result = agent.review(ctx);
@@ -99,7 +99,7 @@ class BaseReviewAgentTest {
     void reviewReturnsEmptyWhenParsingFails() {
         mockFluentChain("not valid json");
 
-        AgentContext ctx = new AgentContext("owner/repo", 1, "Test", "",
+        AgentContext ctx = new AgentContext("owner/repo", 1, "Test", "", "author",
             "diff", List.of(), false, Set.of());
 
         AgentResult result = agent.review(ctx);
@@ -112,7 +112,7 @@ class BaseReviewAgentTest {
     void reviewReturnsEmptyOnException() {
         when(chatClient.prompt()).thenThrow(new RuntimeException("API error"));
 
-        AgentContext ctx = new AgentContext("owner/repo", 1, "Test", "",
+        AgentContext ctx = new AgentContext("owner/repo", 1, "Test", "", "author",
             "diff", List.of(), false, Set.of());
 
         AgentResult result = agent.review(ctx);

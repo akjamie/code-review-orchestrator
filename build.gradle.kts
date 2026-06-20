@@ -30,6 +30,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-json")
 
+    // OpenTelemetry + Langfuse tracing (Spring Boot 4 official starter auto-configures bridge + OTLP exporter)
+    implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+
     // Spring AI — DeepSeek native adapter
     implementation("org.springframework.ai:spring-ai-starter-model-deepseek")
 

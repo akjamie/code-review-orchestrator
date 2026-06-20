@@ -6,7 +6,29 @@
       "mcp__plugin_context7_context7__query-docs",
       "Bash(./gradlew test *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(openssl rand *)",
+      "Bash(docker pull *)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --connect-timeout 5 https://registry-1.docker.io/v2/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --connect-timeout 5 https://hub-mirror.c.163.com/v2/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --connect-timeout 5 https://google.com)",
+      "Bash(docker info *)",
+      "Bash(netsh interface *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --connect-timeout 5 http://localhost:3128)",
+      "Read(//etc/docker/**)",
+      "Bash(powershell -Command 'Get-Content \"${env:ProgramData}\\\\Docker\\\\config\\\\daemon.json\" -ErrorAction SilentlyContinue')",
+      "Bash(powershell -Command \"\\(Get-ItemProperty 'HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Internet Settings' -Name ProxyEnable -ErrorAction SilentlyContinue\\).ProxyEnable\")",
+      "Bash(powershell -Command \"\\(Get-ItemProperty 'HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Internet Settings' -Name ProxyServer -ErrorAction SilentlyContinue\\).ProxyServer\")",
+      "Bash(powershell *)",
+      "Bash(docker volume inspect *)",
+      "Bash(docker volume *)",
+      "Bash(docker run *)",
+      "Bash(MSYS2_ARG_CONV_EXCL=\"*\" docker run *)",
+      "Bash(docker compose *)",
+      "Bash(curl *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

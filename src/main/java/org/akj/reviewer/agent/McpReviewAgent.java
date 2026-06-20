@@ -3,6 +3,7 @@ package org.akj.reviewer.agent;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import org.akj.reviewer.github.GitHubDiffFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -35,16 +36,22 @@ public class McpReviewAgent {
 
     private final ChatClient.Builder chatClientBuilder;
     private final ToolCallbackProvider mcpTools;
+    private final GitHubDiffFetcher diffFetcher;
+    private final io.micrometer.observation.ObservationRegistry observationRegistry;
     private final String model;
     private final int maxTokens;
 
     public McpReviewAgent(
             ChatClient.Builder chatClientBuilder,
             ToolCallbackProvider mcpToolCallbackProvider,
+            GitHubDiffFetcher diffFetcher,
+            io.micrometer.observation.ObservationRegistry observationRegistry,
             @Value("${review.mcp-agent.model:${spring.ai.deepseek.chat.model:deepseek-chat}}") String model,
             @Value("${review.mcp-agent.max-tokens:8192}") int maxTokens) {
         this.chatClientBuilder = chatClientBuilder;
         this.mcpTools = mcpToolCallbackProvider;
+        this.diffFetcher = diffFetcher;
+        this.observationRegistry = observationRegistry;
         this.model = model;
         this.maxTokens = maxTokens;
     }
@@ -66,7 +73,20 @@ public class McpReviewAgent {
     public void reviewPr(String repoFullName, int prNumber) {
         log.info("MCP agent starting review for {}/pull/{}", repoFullName, prNumber);
 
+        String author = "unknown";
         try {
+            var details = diffFetcher.fetchPrDetails(repoFullName, prNumber);
+            author = details.author();
+        } catch (Exception e) {
+            log.warn("Failed to fetch PR author details for {}/pull/{}", repoFullName, prNumber, e);
+        }
+
+        org.akj.reviewer.config.ReviewContextHolder.set(new org.akj.reviewer.config.ReviewContext(author, repoFullName + "#" + prNumber));
+
+        io.micrometer.observation.Observation observation = 
+            io.micrometer.observation.Observation.start("review-pipeline", observationRegistry);
+
+        try (io.micrometer.observation.Observation.Scope scope = observation.openScope()) {
             String systemPrompt = loadSystemPrompt();
 
             String userPrompt = buildUserPrompt(repoFullName, prNumber);
@@ -93,7 +113,11 @@ public class McpReviewAgent {
                     result != null ? result.substring(0, Math.min(200, result.length())) + "..." : "(null)");
 
         } catch (Exception e) {
+            observation.error(e);
             log.error("MCP agent review failed for {}/pull/{}", repoFullName, prNumber, e);
+        } finally {
+            observation.stop();
+            org.akj.reviewer.config.ReviewContextHolder.clear();
         }
     }
 

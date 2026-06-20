@@ -3,6 +3,13 @@ spring:
     virtual:
       enabled: true
   ai:
+    chat:
+      observations:
+        log-prompt: true
+        log-completion: true
+      client:
+        observations:
+          log-prompt: true
     deepseek:
       api-key: ${DEEPSEEK_API_KEY}
       chat:
@@ -56,6 +63,9 @@ review:
   monitored-repos: ${MONITORED_REPOS:}
   # Skip review runs if there are pending/unresolved comments on the PR
   skip-on-unresolved-comments: ${SKIP_ON_UNRESOLVED_COMMENTS:true}
+  # Observability: mask sensitive tokens/PII from Langfuse traces (set to false in trusted dev envs)
+  observability:
+    mask-sensitive-data: ${MASK_SENSITIVE_DATA:true}
 
 github:
   webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
@@ -65,3 +75,22 @@ logging:
   level:
     org.springframework.ai: DEBUG
     io.modelcontextprotocol: DEBUG
+    io.opentelemetry: DEBUG
+    io.micrometer.tracing: DEBUG
+
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  tracing:
+    sampling:
+      probability: 1.0
+  # OTLP export is configured via standard OTel environment variables read by
+  # spring-boot-starter-opentelemetry (configured in .env and loaded by run.ps1):
+  #   OTEL_EXPORTER_OTLP_ENDPOINT   = http://localhost:3000/api/public/otel
+  #   OTEL_EXPORTER_OTLP_HEADERS    = Authorization=Basic <base64(pk:sk)>,x-langfuse-ingestion-version=4
+  #   OTEL_EXPORTER_OTLP_PROTOCOL   = http/protobuf
+
+
+

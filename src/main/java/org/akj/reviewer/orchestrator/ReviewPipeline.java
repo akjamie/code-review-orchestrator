@@ -19,6 +19,7 @@ public class ReviewPipeline {
     private final ReviewOrchestrator orchestrator;
     private final SynthesizerAgent synthesizer;
     private final List<ReviewAgent> allAgents;
+    private final io.micrometer.observation.ObservationRegistry observationRegistry;
 
     @Value("${review.agents.enabled.security:true}")
     private boolean securityEnabled;
@@ -34,37 +35,55 @@ public class ReviewPipeline {
 
     public ReviewPipeline(ReviewOrchestrator orchestrator,
                           SynthesizerAgent synthesizer,
-                          List<ReviewAgent> allAgents) {
+                          List<ReviewAgent> allAgents,
+                          io.micrometer.observation.ObservationRegistry observationRegistry) {
         this.orchestrator = orchestrator;
         this.synthesizer = synthesizer;
         this.allAgents = allAgents;
+        this.observationRegistry = observationRegistry;
     }
 
     public ReviewResult execute(AgentContext context) {
-        List<ReviewAgent> enabledAgents = filterEnabledAgents();
+        String userId = context.prAuthor() != null ? context.prAuthor() : "unknown";
+        String sessionId = context.repoFullName() + "#" + context.prNumber();
 
-        if (enabledAgents.isEmpty()) {
-            log.warn("No agents enabled for review");
-            return new ReviewResult(
-                "## AI Code Review\n\nNo review agents are currently enabled.",
-                List.of());
+        org.akj.reviewer.config.ReviewContextHolder.set(new org.akj.reviewer.config.ReviewContext(userId, sessionId));
+
+        io.micrometer.observation.Observation observation = 
+            io.micrometer.observation.Observation.start("review-pipeline", observationRegistry);
+
+        try (io.micrometer.observation.Observation.Scope scope = observation.openScope()) {
+            List<ReviewAgent> enabledAgents = filterEnabledAgents();
+
+            if (enabledAgents.isEmpty()) {
+                log.warn("No agents enabled for review");
+                return new ReviewResult(
+                    "## AI Code Review\n\nNo review agents are currently enabled.",
+                    List.of());
+            }
+
+            log.info("Running {} agents on PR #{} — languages: {}",
+                enabledAgents.size(), context.prNumber(), context.detectedLanguages());
+
+            List<AgentResult> results = orchestrator.runAgents(enabledAgents, context);
+
+            long failedCount = results.stream()
+                .filter(r -> r.findings().isEmpty() && !r.rawReasoning().isBlank()
+                    && !r.rawReasoning().startsWith("Agent failed"))
+                .count();
+
+            if (failedCount > 0) {
+                log.warn("{} agent(s) returned no findings", failedCount);
+            }
+
+            return synthesizer.synthesize(results, context);
+        } catch (Exception e) {
+            observation.error(e);
+            throw e;
+        } finally {
+            observation.stop();
+            org.akj.reviewer.config.ReviewContextHolder.clear();
         }
-
-        log.info("Running {} agents on PR #{} — languages: {}",
-            enabledAgents.size(), context.prNumber(), context.detectedLanguages());
-
-        List<AgentResult> results = orchestrator.runAgents(enabledAgents, context);
-
-        long failedCount = results.stream()
-            .filter(r -> r.findings().isEmpty() && !r.rawReasoning().isBlank()
-                && !r.rawReasoning().startsWith("Agent failed"))
-            .count();
-
-        if (failedCount > 0) {
-            log.warn("{} agent(s) returned no findings", failedCount);
-        }
-
-        return synthesizer.synthesize(results, context);
     }
 
     private List<ReviewAgent> filterEnabledAgents() {

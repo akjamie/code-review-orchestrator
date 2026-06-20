@@ -44,7 +44,7 @@ class ReviewFlowIntegrationTest {
         );
 
         var ctx = new AgentContext(
-            "owner/repo", 1, "Test PR", "Test description",
+            "owner/repo", 1, "Test PR", "Test description", "author",
             diff, files, false, Set.of("Java")
         );
 
@@ -78,7 +78,7 @@ class ReviewFlowIntegrationTest {
             : originalDiff;
 
         var ctx = new AgentContext(
-            "owner/repo", 2, "Truncated PR", "",
+            "owner/repo", 2, "Truncated PR", "", "author",
             truncatedDiff, List.of("AuthService.java"), true, Set.of("Java")
         );
 
@@ -91,7 +91,7 @@ class ReviewFlowIntegrationTest {
     @Test
     void pipelineHandlesEmptyDiff() {
         var ctx = new AgentContext(
-            "owner/repo", 3, "Empty PR", "",
+            "owner/repo", 3, "Empty PR", "", "author",
             "", List.of(), false, Set.of()
         );
 

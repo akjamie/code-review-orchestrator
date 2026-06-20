@@ -37,7 +37,7 @@ class ReviewOrchestratorTest {
     void setUp() {
         executor = Executors.newVirtualThreadPerTaskExecutor();
         when(aiConfig.getAgentTimeoutSeconds()).thenReturn(5);
-        orchestrator = new ReviewOrchestrator(executor, aiConfig);
+        orchestrator = new ReviewOrchestrator(executor, aiConfig, io.micrometer.observation.ObservationRegistry.NOOP);
     }
 
     @Test
@@ -45,7 +45,7 @@ class ReviewOrchestratorTest {
         ReviewAgent agent1 = mock(ReviewAgent.class);
         ReviewAgent agent2 = mock(ReviewAgent.class);
 
-        AgentContext ctx = new AgentContext("owner/repo", 1, "PR", "",
+        AgentContext ctx = new AgentContext("owner/repo", 1, "PR", "", "author",
             "diff", List.of("File.java"), false, Set.of("Java"));
 
         AgentResult result1 = new AgentResult("agent1",
@@ -72,7 +72,7 @@ class ReviewOrchestratorTest {
         ReviewAgent goodAgent = mock(ReviewAgent.class);
         ReviewAgent badAgent = mock(ReviewAgent.class);
 
-        AgentContext ctx = new AgentContext("owner/repo", 1, "PR", "",
+        AgentContext ctx = new AgentContext("owner/repo", 1, "PR", "", "author",
             "diff", List.of(), false, Set.of());
 
         AgentResult goodResult = new AgentResult("good",

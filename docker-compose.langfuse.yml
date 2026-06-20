@@ -1,0 +1,115 @@
+services:
+  postgres:
+    image: postgres:18.4
+    container_name: postgres-langfuse
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: oCXzFwjr9zdJMf3nZPSefoQLxeaEiy0yDPuGW19C6fg=
+      POSTGRES_DB: langfuse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.12
+    container_name: clickhouse-langfuse
+    restart: always
+    environment:
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: langfuse-pass
+    ports:
+      - "8123:8123"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-config.xml:/etc/clickhouse-server/config.d/cluster.xml
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio-langfuse
+    restart: always
+    ports:
+      - "9091:9000" # S3 API (mapped to 9091 on host to avoid 9000 ClickHouse conflict)
+      - "9092:9001" # MinIO Console
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniopassword
+    volumes:
+      - minio-data:/data
+    entrypoint: [ "sh", "-c", "mkdir -p /data/langfuse && minio server --console-address :9001 /data" ]
+
+  redis:
+    image: redis:7
+    container_name: redis-langfuse
+    restart: always
+    command: --maxmemory-policy noeviction
+    volumes:
+      - redis-data:/data
+
+  langfuse-server:
+    image: langfuse/langfuse:3.190
+    container_name: langfuse-server
+    depends_on:
+      - postgres
+      - clickhouse
+      - minio
+      - redis
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:oCXzFwjr9zdJMf3nZPSefoQLxeaEiy0yDPuGW19C6fg=@postgres:5432/langfuse
+      - CLICKHOUSE_URL=http://langfuse:langfuse-pass@clickhouse:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://langfuse:langfuse-pass@clickhouse:9000
+      - CLICKHOUSE_USER=langfuse
+      - CLICKHOUSE_PASSWORD=langfuse-pass
+      - REDIS_CONNECTION_STRING=redis://redis:6379/0
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=OirY4jmZWRJ4lPhWGAmJ5G/y083iU6yXoxaTpa7lb7gwJK9fhfhaIu9d8tv85A7u
+      - SALT=2Rvu7TOBVS+l2I4rs3c32kxswV4K3wMu2sShcP50HubX/YfnBLnWc2ARO7/QECgd
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_S3_EVENT_UPLOAD_ENABLED=true
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=minio
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=miniopassword
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:latest
+    container_name: langfuse-worker
+    depends_on:
+      - postgres
+      - clickhouse
+      - minio
+      - redis
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:oCXzFwjr9zdJMf3nZPSefoQLxeaEiy0yDPuGW19C6fg=@postgres:5432/langfuse
+      - CLICKHOUSE_URL=http://langfuse:langfuse-pass@clickhouse:8123
+      - CLICKHOUSE_USER=langfuse
+      - CLICKHOUSE_PASSWORD=langfuse-pass
+      - REDIS_CONNECTION_STRING=redis://redis:6379/0
+      - SALT=2Rvu7TOBVS+l2I4rs3c32kxswV4K3wMu2sShcP50HubX/YfnBLnWc2ARO7/QECgd
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_S3_EVENT_UPLOAD_ENABLED=true
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=minio
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=miniopassword
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+
+volumes:
+  pgdata:
+  clickhouse-data:
+  minio-data:
+  redis-data:

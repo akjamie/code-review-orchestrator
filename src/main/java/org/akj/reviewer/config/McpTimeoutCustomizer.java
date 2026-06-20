@@ -24,5 +24,6 @@ public class McpTimeoutCustomizer implements McpClientCustomizer<McpClient.SyncS
     @Override
     public void customize(String name, McpClient.SyncSpec spec) {
         spec.requestTimeout(timeout);
+        spec.initializationTimeout(timeout);
     }
 }
