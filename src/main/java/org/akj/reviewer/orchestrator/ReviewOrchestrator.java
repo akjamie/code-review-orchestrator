@@ -19,17 +19,28 @@ public class ReviewOrchestrator {
 
     private final ExecutorService executor;
     private final int timeoutSeconds;
+    private final io.micrometer.observation.ObservationRegistry observationRegistry;
 
     public ReviewOrchestrator(ExecutorService virtualThreadExecutor,
-                              AiConfig aiConfig) {
+                              AiConfig aiConfig,
+                              io.micrometer.observation.ObservationRegistry observationRegistry) {
         this.executor = virtualThreadExecutor;
         this.timeoutSeconds = aiConfig.getAgentTimeoutSeconds();
+        this.observationRegistry = observationRegistry;
     }
 
     public List<AgentResult> runAgents(List<ReviewAgent> agents, AgentContext context) {
+        final io.micrometer.observation.Observation parent = observationRegistry.getCurrentObservation();
         List<CompletableFuture<AgentResult>> futures = agents.stream()
             .map(agent -> CompletableFuture
-                .supplyAsync(() -> agent.review(context), executor)
+                .supplyAsync(() -> {
+                    if (parent != null) {
+                        try (io.micrometer.observation.Observation.Scope scope = parent.openScope()) {
+                            return agent.review(context);
+                        }
+                    }
+                    return agent.review(context);
+                }, executor)
                 .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .exceptionally(ex -> {
                     log.warn("Agent {} failed: {}", agent.agentName(), ex.getMessage());

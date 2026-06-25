@@ -123,17 +123,18 @@ public class GitHubWebhookController {
         // 6. Return 200 immediately — process async
         String prTitle = payload.path("pull_request").path("title").asText("");
         String prDescription = payload.path("pull_request").path("body").asText("");
+        String prAuthor = payload.path("pull_request").path("user").path("login").asText("unknown");
         int prNumber = payload.path("number").asInt();
 
         log.info("Processing PR #{} from {} (action={})", prNumber, repoFullName, action);
 
         CompletableFuture.runAsync(() ->
-            processReview(repoFullName, prNumber, prTitle, prDescription));
+            processReview(repoFullName, prNumber, prTitle, prDescription, prAuthor));
 
         return ResponseEntity.ok("Review queued");
     }
 
-    private void processReview(String repoFullName, int prNumber, String prTitle, String prDescription) {
+    private void processReview(String repoFullName, int prNumber, String prTitle, String prDescription, String prAuthor) {
         if (skipOnUnresolved && diffFetcher.hasUnresolvedThreads(repoFullName, prNumber)) {
             log.info("Skipping review for {}/pull/{} because there are unresolved review comments", repoFullName, prNumber);
             return;
@@ -149,7 +150,7 @@ public class GitHubWebhookController {
         } else {
             log.info("Routing to classic pipeline for {}/pull/{}", repoFullName, prNumber);
             try {
-                var context = diffFetcher.fetchContext(repoFullName, prNumber, prTitle, prDescription);
+                var context = diffFetcher.fetchContext(repoFullName, prNumber, prTitle, prDescription, prAuthor);
                 var result = pipeline.execute(context);
                 reviewPoster.postReview(repoFullName, prNumber, result.markdownBody(), result.findings());
             } catch (Exception e) {

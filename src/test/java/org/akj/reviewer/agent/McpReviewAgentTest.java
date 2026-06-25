@@ -32,14 +32,21 @@ class McpReviewAgentTest {
     @Mock
     private ToolCallbackProvider mcpTools;
 
+    @Mock
+    private org.akj.reviewer.github.GitHubDiffFetcher diffFetcher;
+
     @Test
-    void testReviewPrSuccess() {
+    void testReviewPrSuccess() throws Exception {
         // Mock ToolCallbackProvider
         when(mcpTools.getToolCallbacks()).thenReturn(new ToolCallback[0]);
 
+        // Mock GitHubDiffFetcher
+        org.akj.reviewer.github.GitHubDiffFetcher.PrDetails prDetails = 
+            new org.akj.reviewer.github.GitHubDiffFetcher.PrDetails("Title", "Body", "author");
+        when(diffFetcher.fetchPrDetails(anyString(), anyInt())).thenReturn(prDetails);
+
         // Mock ChatClient.Builder fluent chain
         when(chatClientBuilder.defaultSystem(anyString())).thenReturn(chatClientBuilder);
-        when(chatClientBuilder.defaultAdvisors(any(org.springframework.ai.chat.client.advisor.api.Advisor[].class))).thenReturn(chatClientBuilder);
         when(chatClientBuilder.build()).thenReturn(chatClient);
 
         // Mock ChatClient fluent chain
@@ -50,7 +57,14 @@ class McpReviewAgentTest {
         when(chatClientRequestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.content()).thenReturn("Review posted successfully");
 
-        McpReviewAgent agent = new McpReviewAgent(chatClientBuilder, mcpTools, "deepseek-chat", 8192);
+        McpReviewAgent agent = new McpReviewAgent(
+            chatClientBuilder, 
+            mcpTools, 
+            diffFetcher, 
+            io.micrometer.observation.ObservationRegistry.NOOP, 
+            "deepseek-chat", 
+            8192
+        );
         
         // Act & Assert (should complete without throwing exceptions)
         assertDoesNotThrow(() -> agent.reviewPr("owner/repo", 42));

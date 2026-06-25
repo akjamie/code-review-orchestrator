@@ -68,7 +68,7 @@ public class GitHubDiffFetcher {
     }
 
 
-    public record PrDetails(String title, String body) {}
+    public record PrDetails(String title, String body, String author) {}
 
     public PrDetails fetchPrDetails(String repoFullName, int prNumber) throws IOException, InterruptedException {
         String url = "https://api.github.com/repos/" + repoFullName + "/pulls/" + prNumber;
@@ -88,20 +88,21 @@ public class GitHubDiffFetcher {
         var root = objectMapper.readTree(response.body());
         String title = root.path("title").asText("");
         String body = root.path("body").asText("");
-        return new PrDetails(title, body);
+        String author = root.path("user").path("login").asText("unknown");
+        return new PrDetails(title, body, author);
     }
 
     public AgentContext fetchContext(String repoFullName, int prNumber) {
         try {
             PrDetails details = fetchPrDetails(repoFullName, prNumber);
-            return fetchContext(repoFullName, prNumber, details.title(), details.body());
+            return fetchContext(repoFullName, prNumber, details.title(), details.body(), details.author());
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException("Failed to fetch PR details for " + repoFullName + "#" + prNumber, e);
         }
     }
 
     public AgentContext fetchContext(String repoFullName, int prNumber,
-                                     String prTitle, String prDescription) {
+                                     String prTitle, String prDescription, String prAuthor) {
         try {
             String rawDiff = fetchDiff(repoFullName, prNumber);
             List<String> changedFiles = fetchChangedFiles(repoFullName, prNumber);
@@ -114,6 +115,7 @@ public class GitHubDiffFetcher {
                 prNumber,
                 prTitle,
                 prDescription,
+                prAuthor,
                 diff,
                 changedFiles,
                 isPartial,

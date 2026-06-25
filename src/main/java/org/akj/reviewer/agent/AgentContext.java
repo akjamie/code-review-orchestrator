@@ -8,6 +8,7 @@ public record AgentContext(
     int prNumber,
     String prTitle,
     String prDescription,
+    String prAuthor,
     String diffContent,
     List<String> changedFiles,
     boolean isPartial,

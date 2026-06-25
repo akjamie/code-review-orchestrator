@@ -61,6 +61,7 @@ public class LocalReviewController {
             0,
             request.title() != null ? request.title() : "Local review",
             "",
+            "local-user",
             request.diff(),
             request.files() != null ? request.files() : List.of(),
             false,
