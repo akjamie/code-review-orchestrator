@@ -6,6 +6,23 @@
 
 ---
 
+## Terminology
+
+Three terms appear throughout this doc and are often conflated. Precise definitions in the
+context of this stack:
+
+| Term | Layer | Definition |
+|------|-------|------------|
+| **Trace** | Langfuse / OTel | A single end-to-end operation — in this system, one PR review. Contains a tree of spans sharing the same `traceId`. Langfuse shows a trace as a top-level row in the UI with its own `input` and `output`. |
+| **Span** | OTel | A named, timed unit of work within a trace — one LLM call, one tool invocation, or the root `review-pipeline` itself. Spans nest via `parentSpanId`. Each span carries key-value attributes (e.g. `gen_ai.request.model`, `langfuse.observation.input`). |
+| **Observation** | Micrometer | The Micrometer-layer abstraction that maps 1:1 to an OTel `Span` after the bridge converts it. In code we work with `Observation` and `Observation.Context`; by the time data reaches Langfuse it is a span. Think of `Observation` as the mutable staging object before it is sealed and exported as an immutable `Span`. |
+
+The relationship: `Observation.stop()` → Micrometer bridge → `OTel Span` sealed →
+`BatchSpanProcessor` queues it → `OtlpHttpSpanExporter` sends it → Langfuse stores it and
+groups spans by `traceId` to reconstruct the trace tree.
+
+---
+
 ## 1. Technology Stack & Binding Points
 
 ```
