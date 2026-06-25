@@ -203,6 +203,31 @@ When `review.mcp-agent.enabled=true`, the webhook can route the PR URL directly 
 | Token budgets | Agents 1024 / Synthesizer 3000 | Synthesizer needs headroom for all findings |
 | Diff truncation | 80k chars max, `isPartial` flag | Prevents silent context overflow |
 
+## Observability & Langfuse Tracing
+
+Every PR review is fully instrumented with [OpenTelemetry](https://opentelemetry.io/) and
+exported to a self-hosted [Langfuse](https://langfuse.com) instance. Each trace covers the
+entire pipeline — from the root `review-pipeline` span down to individual LLM calls, tool
+invocations, and their prompt/completion payloads.
+
+**Key features:**
+- **Zero-SDK integration** — uses the standard OTLP/HTTP protocol via
+  `spring-boot-starter-opentelemetry`; no Langfuse SDK is bundled.
+- **Automatic I/O capture** — prompts and completions are extracted from Spring AI
+  `ChatModelObservationContext` and written to `langfuse.observation.input/output`,
+  including tool-call-only responses (`finish_reason=TOOL_CALLS`).
+- **PII/secret masking** — GitHub PATs, AI API keys, Bearer tokens, emails, and PEM keys
+  are automatically redacted before any data leaves the JVM.
+- **Session & user correlation** — every span is tagged with the PR author and a session
+  ID (`repo#PR-number`) so you can filter traces by pull request or contributor.
+- **Self-hosted backend** — Langfuse + PostgreSQL + ClickHouse + MinIO + Redis are all
+  defined in [`docker-compose.langfuse.yml`](docker-compose.langfuse.yml).
+
+For full architecture details, component reference, configuration, and local setup
+instructions, see **[docs/observability-tracing.md](docs/observability-tracing.md)**.
+
+---
+
 ## Project Structure
 
 ```
@@ -384,6 +409,10 @@ comment appears directly on line 42 of Auth.java in the PR diff view).
 | `MONITORED_REPOS` | Comma-separated `owner/repo` list for webhook/polling | (Empty = allow all) |
 | `MCP_MODEL_NAME` | Override the model for the MCP review agent | `deepseek-chat` |
 | `MODEL_NAME` | Override the default model for all agents | `deepseek-chat` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Langfuse OTLP ingest endpoint | `http://localhost:3000/api/public/otel` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | OTLP auth header (Base64 key pair + ingestion version) | `Authorization=Basic <b64>,...` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | Must be `http/protobuf` (Langfuse does not support gRPC) | `http/protobuf` |
+| `MASK_SENSITIVE_DATA` | Redact secrets/PII from Langfuse traces | `true` |
 
 ## License
 

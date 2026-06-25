@@ -2,6 +2,7 @@ package org.akj.reviewer.webhook;
 
 import java.util.List;
 import java.util.Set;
+
 import org.akj.reviewer.agent.AgentContext;
 import org.akj.reviewer.github.GitHubDiffFetcher;
 import org.akj.reviewer.orchestrator.ReviewPipeline;
@@ -11,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,13 +41,13 @@ public class LocalReviewController {
      * Trigger a review from a raw diff string.
      *
      * Example:
-     *   curl -X POST "http://localhost:8080/review/local" \
-     *     -H "Content-Type: application/json" \
-     *     -d '{
-     *       "diff": "diff --git a/App.java b/App.java\n...",
-     *       "files": ["src/main/App.java"],
-     *       "title": "Local test PR"
-     *     }'
+     * curl -X POST "http://localhost:8080/review/local" \
+     * -H "Content-Type: application/json" \
+     * -d '{
+     * "diff": "diff --git a/App.java b/App.java\n...",
+     * "files": ["src/main/App.java"],
+     * "title": "Local test PR"
+     * }'
      */
     @PostMapping("/review/local")
     @Operation(summary = "Review raw diff locally", description = "Accepts a raw Git diff payload, runs the classic 4-agent review pipeline, and returns the unified review findings as JSON without modifying or posting to GitHub.")
@@ -57,16 +57,15 @@ public class LocalReviewController {
         Set<String> languages = diffFetcher.detectLanguages(request.files());
 
         var ctx = new AgentContext(
-            "local/test",
-            0,
-            request.title() != null ? request.title() : "Local review",
-            "",
-            "local-user",
-            request.diff(),
-            request.files() != null ? request.files() : List.of(),
-            false,
-            languages
-        );
+                "local/test",
+                0,
+                request.title() != null ? request.title() : "Local review",
+                "",
+                "local-user",
+                request.diff(),
+                request.files() != null ? request.files() : List.of(),
+                false,
+                languages);
 
         ReviewResult result = pipeline.execute(ctx);
 
@@ -80,8 +79,8 @@ public class LocalReviewController {
      * Request body for local review.
      */
     public record LocalReviewRequest(
-        String diff,
-        List<String> files,
-        String title
-    ) {}
+            String diff,
+            List<String> files,
+            String title) {
+    }
 }
