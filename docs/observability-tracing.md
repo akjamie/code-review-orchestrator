@@ -411,3 +411,190 @@ The Langfuse self-hosted backend (`docker-compose.langfuse.yml`):
 | 3-tier fallback in handler | Single write point in filter | Filter misses streaming completions; handler's `onStop` fires after stream aggregation is complete |
 | `LOWEST_PRECEDENCE` on both filter and handler | Custom numeric order | Filter and handler pipelines are independent; `LOWEST_PRECEDENCE` in each ensures Spring AI built-ins run first in both pipelines |
 | OTLP/HTTP protobuf, no Langfuse SDK | Langfuse Python/JS SDK, or OpenLLMetry | Zero SDK dependency; standard OTel is stable, protocol-agnostic, and portable |
+
+---
+
+## 9. Engineering Insights, Gotchas & Forward-Looking Notes
+
+### 9.1 The Streaming Output Gap — What Actually Happens
+
+The doc says the 3-tier handler fallback covers streaming. It is worth being precise about
+**why** the race condition exists and **what the fallback actually observes**.
+
+Spring AI's streaming path (e.g. `DeepSeekChatModel.internalStream`) is implemented as a
+reactive `Flux`. The observation lifecycle is:
+
+```
+Flux.create(...)
+  .doOnNext(chunk → aggregate into MessageAggregator)
+  .doFinally(_ → observation.stop())     ← fires on last item / error / cancel
+```
+
+`MessageAggregator.setResponse()` is called **inside** the subscriber's `onNext` chain
+**before** `doFinally`. So by the time `observation.stop()` fires:
+
+1. `setResponse()` has already been called on the context ✓
+2. `SensitiveDataMaskingFilter.map()` runs — `ctx.getResponse()` **is not null** ✓
+
+This means the streaming gap that existed in earlier Spring AI versions **may be fully
+closed** in the current version. The 3-tier handler is a safety net, not an active fix
+for a current failure mode. If you observe empty outputs in Langfuse for streaming calls,
+**verify `setResponse()` ordering** before blaming the handler — it may indicate a Spring
+AI version regression, not an application bug.
+
+> **Diagnostic:** Enable `logging.level.io.micrometer.observation=TRACE` and look for
+> `"langfuse.observation.output already set by filter"` vs `"Setting langfuse.observation.output
+> from ChatModelObservationContext"` to determine which tier is firing.
+
+---
+
+### 9.2 OTLP Payload Size & Diff-Length Risk
+
+This application truncates diffs to 80,000 characters before sending them to agents.
+Those diffs flow through as prompt text into `langfuse.observation.input`. The full
+formatted prompt (system prompt + diff + prior messages) can approach **100 KB per span
+attribute**.
+
+The OTel SDK's `BatchSpanProcessor` defaults:
+- Max queue size: **2,048 spans**
+- Max export batch size: **512 spans**
+- Export interval: **5 seconds**
+- Export timeout: **30 seconds**
+
+A single review triggers ~5–6 spans (4 agents + synthesizer + root). At 100 KB per span,
+one review generates ~500 KB of OTLP payload — well within limits for development.
+
+**Where this breaks at scale:**
+- Langfuse's OTLP ingestion has a **4 MB hard limit per HTTP request**. A batch of 512
+  spans at 100 KB each = 51 MB — the exporter will silently drop oversized batches.
+- The `BatchSpanProcessor` queue is in-memory. Under bursty load (many PRs in parallel),
+  the queue fills and new spans are dropped with a `"DROPPED"` log at WARN level.
+
+**Mitigation if this becomes a problem:**
+```java
+// Truncate langfuse.observation.input/output at the attribute level
+// before it reaches the OTel bridge, e.g. in LangfuseObservationHandler:
+private static final int MAX_ATTR_LENGTH = 32_768; // 32 KB
+
+private String truncate(String value) {
+    if (value == null || value.length() <= MAX_ATTR_LENGTH) return value;
+    return value.substring(0, MAX_ATTR_LENGTH) + "\n...[TRUNCATED]";
+}
+```
+
+No such truncation exists today — worth adding before production deployment.
+
+---
+
+### 9.3 `InheritableThreadLocal` on Java 25 — Technical Debt
+
+`ReviewContextHolder` uses `InheritableThreadLocal`, which works for the current
+`Executors.newVirtualThreadPerTaskExecutor()` pattern. However:
+
+- **Java 21+ deprecation trajectory:** `ThreadLocal` (and by extension
+  `InheritableThreadLocal`) is being phased out for virtual thread workloads. JEP 481
+  (`ScopedValue`) was finalized in Java 23 and is the JDK's recommended replacement.
+- **Inheritance is copy-on-create:** The value is copied when the child virtual thread is
+  created. If the parent thread modifies the holder after thread creation (unlikely here,
+  but possible if the design evolves), the child sees a stale value.
+- **`clear()` is non-trivial in nested scenarios:** If a virtual thread creates further
+  child threads (e.g. async tool calls spawning more Virtual Threads), those grandchildren
+  inherit the value correctly, but `clear()` on the parent does not propagate — the
+  grandchildren keep the stale reference until their own GC cycle.
+
+**Recommended migration to `ScopedValue` (Java 23+):**
+
+```java
+// Replace:
+private static final InheritableThreadLocal<ReviewContext> CONTEXT = new InheritableThreadLocal<>();
+
+// With:
+public static final ScopedValue<ReviewContext> CONTEXT = ScopedValue.newInstance();
+
+// Usage in ReviewPipeline.execute():
+ScopedValue.where(ReviewContextHolder.CONTEXT, new ReviewContext(userId, sessionId))
+           .run(() -> {
+               // all code here, including virtual thread spawning, sees the value
+           });
+// No explicit clear() needed — ScopedValue is automatically unbound at the end of run()
+```
+
+`ScopedValue` provides structured, bounded scope — the value is never visible outside the
+`run()` block, eliminating the leak risk entirely.
+
+---
+
+### 9.4 OTLP Export Failure — Silent Data Loss
+
+If Langfuse is unreachable, the `BatchSpanProcessor` logs errors and drops spans after
+the export timeout expires. **The application itself is unaffected** — observability
+failure does not propagate back to the request path.
+
+What you will see in logs:
+```
+WARN  io.opentelemetry.sdk.trace.export.BatchSpanProcessor - Exporter failed, Spans that were previously queued are discarded.
+```
+
+What you will **not** see: any retry, any dead-letter queue, any alerting.
+
+**Debugging OTLP connectivity:**
+```bash
+# Verify the endpoint is reachable and auth header is correct
+curl -v -X POST http://localhost:3000/api/public/otel/v1/traces \
+  -H "Authorization: Basic $(echo -n 'pk-lf-xxx:sk-lf-xxx' | base64)" \
+  -H "x-langfuse-ingestion-version: 4" \
+  -H "Content-Type: application/x-protobuf" \
+  --data-binary @/dev/null
+# Expect HTTP 200; 401 = wrong key; 404 = wrong URL path; connection refused = Langfuse down
+```
+
+**The `x-langfuse-ingestion-version: 4` header is mandatory for Langfuse 3.x.** Omitting
+it causes Langfuse to silently accept the request with HTTP 200 but discard the payload.
+This is the most common "traces not appearing" root cause.
+
+---
+
+### 9.5 `sampling.probability: 1.0` — Production Consideration
+
+Currently every span is sampled (`probability: 1.0`). For development this is correct.
+For production with high PR volume:
+
+- Each PR review generates ~6 spans
+- At 100 PRs/day = 600 spans/day — entirely manageable for ClickHouse
+- At 10,000 PRs/day = 60,000 spans/day — still fine; ClickHouse is designed for this
+
+Sampling reduction is unlikely to be needed unless the LLM call latency causes span
+attribute accumulation to outpace ClickHouse write throughput. Leave at `1.0` unless
+you observe ClickHouse CPU/memory pressure at scale.
+
+---
+
+### 9.6 Attribute Write Ordering — Why Tier 1 Is the Common Path
+
+The filter runs during `observation.stop()`. At that moment, for a **non-streaming**
+`ChatClient.call()`, the response is synchronously available. The filter writes
+`langfuse.observation.output` directly from the response object.
+
+When the OTel bridge runs (after all handlers), it reads the final state of the context's
+`highCardinalityKeyValues` map and converts each entry to an OTel span attribute. The
+bridge does not differentiate between attributes written by the filter vs. the handler —
+it sees only the final map state. This means:
+
+- If the filter writes `langfuse.observation.output` (Tier 1 path), the handler's Tier 1
+  check short-circuits and does nothing — **zero duplication risk**.
+- If the handler writes it (Tier 2 or 3), it calls `removeHighCardinalityKeyValues(key)`
+  before `addHighCardinalityKeyValue(key, value)`, ensuring no duplicate keys exist.
+
+The `setHighCardinalityKeyValue` helper in both components enforces this:
+
+```java
+private void setHighCardinalityKeyValue(Observation.Context context, String key, String value) {
+    if (value != null) {
+        context.removeHighCardinalityKeyValues(key);   // idempotent remove
+        context.addHighCardinalityKeyValue(KeyValue.of(key, value));
+    }
+}
+```
+
+This is the correct pattern when writing to Micrometer's observation context outside the
+initial observation construction — always remove before add.
