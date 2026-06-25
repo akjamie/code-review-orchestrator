@@ -1,37 +1,43 @@
 package org.akj.reviewer.config;
 
-import io.micrometer.common.KeyValue;
-import io.micrometer.observation.Observation;
-import io.micrometer.observation.ObservationFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.observation.ChatModelObservationContext;
-import org.springframework.ai.content.Content;
-import org.springframework.util.CollectionUtils;
-import org.springframework.core.Ordered;
-
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.observation.ChatModelObservationContext;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.Ordered;
+import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+
+import io.micrometer.common.KeyValue;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationFilter;
+
 /**
- * Micrometer {@link ObservationFilter} that redacts sensitive tokens and PII from
- * Spring AI observation attributes ({@code gen_ai.prompt}, {@code gen_ai.completion},
- * {@code gen_ai.prompt.*}, {@code gen_ai.completion.*}) before they are exported to
+ * Micrometer {@link ObservationFilter} that redacts sensitive tokens and PII
+ * from
+ * Spring AI observation attributes ({@code gen_ai.prompt},
+ * {@code gen_ai.completion},
+ * {@code gen_ai.prompt.*}, {@code gen_ai.completion.*}) before they are
+ * exported to
  * the OTLP/Langfuse backend.
  *
- * <p>The filter only activates for observations whose name starts with {@code spring.ai.}
+ * <p>
+ * The filter only activates for observations whose name starts with
+ * {@code spring.ai.}
  * to avoid unintentionally masking other spans (HTTP, DB, etc.).
  *
- * <p>Masking rules (partial-mask style for easier correlation):
+ * <p>
+ * Masking rules (partial-mask style for easier correlation):
  * <ul>
- *   <li>GitHub PATs ({@code ghp_…})  → {@code ghp_***}</li>
- *   <li>DeepSeek / generic AI keys ({@code sk-…}) → {@code sk-***}</li>
- *   <li>Bearer tokens → {@code Bearer ***}</li>
- *   <li>Email addresses → {@code [EMAIL REDACTED]}</li>
- *   <li>PEM private keys → {@code [PRIVATE KEY REDACTED]}</li>
+ * <li>GitHub PATs ({@code ghp_…}) → {@code ghp_***}</li>
+ * <li>DeepSeek / generic AI keys ({@code sk-…}) → {@code sk-***}</li>
+ * <li>Bearer tokens → {@code Bearer ***}</li>
+ * <li>Email addresses → {@code [EMAIL REDACTED]}</li>
+ * <li>PEM private keys → {@code [PRIVATE KEY REDACTED]}</li>
  * </ul>
  */
 @Component
@@ -48,8 +54,7 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
             "langfuse.observation.input",
             "langfuse.observation.output",
             "langfuse.trace.input",
-            "langfuse.trace.output"
-    );
+            "langfuse.trace.output");
 
     // Prefix filter — only mask observations produced by Spring AI
     private static final String SPRING_AI_PREFIX = "spring.ai.";
@@ -58,28 +63,23 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
     // --- masking patterns (applied in order) ---
 
     /** GitHub Personal Access Tokens: ghp_<alphanumeric> */
-    private static final Pattern GITHUB_PAT =
-            Pattern.compile("ghp_[A-Za-z0-9]+");
+    private static final Pattern GITHUB_PAT = Pattern.compile("ghp_[A-Za-z0-9]+");
 
     /** DeepSeek / generic AI secret keys: sk-<hex/alphanum 16+> */
-    private static final Pattern AI_SECRET_KEY =
-            Pattern.compile("sk-[A-Za-z0-9]{10,}");
+    private static final Pattern AI_SECRET_KEY = Pattern.compile("sk-[A-Za-z0-9]{10,}");
 
     /** HTTP Bearer tokens (JWT, OAuth) */
-    private static final Pattern BEARER_TOKEN =
-            Pattern.compile("Bearer\\s+[A-Za-z0-9._\\-/+]{10,}");
+    private static final Pattern BEARER_TOKEN = Pattern.compile("Bearer\\s+[A-Za-z0-9._\\-/+]{10,}");
 
     /** Basic auth credentials (base64 encoded): Basic <base64> */
-    private static final Pattern BASIC_AUTH =
-            Pattern.compile("Basic\\s+[A-Za-z0-9+/=]{10,}");
+    private static final Pattern BASIC_AUTH = Pattern.compile("Basic\\s+[A-Za-z0-9+/=]{10,}");
 
     /** RFC 5322-compatible email address */
-    private static final Pattern EMAIL =
-            Pattern.compile("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
+    private static final Pattern EMAIL = Pattern.compile("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
 
     /** PEM private key blocks */
-    private static final Pattern PEM_PRIVATE_KEY =
-            Pattern.compile("-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z ]*PRIVATE KEY-----");
+    private static final Pattern PEM_PRIVATE_KEY = Pattern
+            .compile("-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z ]*PRIVATE KEY-----");
 
     @Value("${review.observability.mask-sensitive-data:true}")
     private boolean maskEnabled;
@@ -87,14 +87,19 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
     @Override
     public Observation.Context map(Observation.Context context) {
         String name = context.getName();
-        if (name == null || (!name.startsWith(SPRING_AI_PREFIX) && !name.startsWith(GEN_AI_PREFIX) && !name.equals("review-pipeline"))) {
+        if (name == null || (!name.startsWith(SPRING_AI_PREFIX) && !name.startsWith(GEN_AI_PREFIX)
+                && !name.equals("review-pipeline"))) {
             return context;
         }
 
-        // 1. If it's a ChatModel observation, extract prompts (and completions if response is present).
-        //    Note: for streaming calls (DeepSeekChatModel.internalStream), context.getResponse()
-        //    is null when map() runs because observation.stop() is called via doFinally BEFORE
-        //    MessageAggregator calls setResponse(). For non-streaming calls, it is present here.
+        // 1. If it's a ChatModel observation, extract prompts (and completions if
+        // response is present).
+        // Note: for streaming calls (DeepSeekChatModel.internalStream),
+        // context.getResponse()
+        // is null when map() runs because observation.stop() is called via doFinally
+        // BEFORE
+        // MessageAggregator calls setResponse(). For non-streaming calls, it is present
+        // here.
         if (context instanceof ChatModelObservationContext chatModelObservationContext) {
             var prompts = processPrompts(chatModelObservationContext);
             if (!prompts.isEmpty()) {
@@ -149,8 +154,10 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
                 .toList();
 
         // Replace all high-cardinality key-values with the masked set.
-        // Snapshot keys first to avoid concurrent-modification if getHighCardinalityKeyValues()
-        // returns a live collection view that is modified by removeHighCardinalityKeyValues().
+        // Snapshot keys first to avoid concurrent-modification if
+        // getHighCardinalityKeyValues()
+        // returns a live collection view that is modified by
+        // removeHighCardinalityKeyValues().
         var keysToRemove = context.getHighCardinalityKeyValues().stream()
                 .map(KeyValue::getKey)
                 .toList();
@@ -166,7 +173,8 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
 
     private List<String> processPrompts(ChatModelObservationContext chatModelObservationContext) {
         var request = chatModelObservationContext.getRequest();
-        if (request == null) return List.of();
+        if (request == null)
+            return List.of();
         var instructions = request.getInstructions();
         if (CollectionUtils.isEmpty(instructions)) {
             return List.of();
@@ -198,7 +206,7 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
             if (toolMessage.getResponses() != null) {
                 for (var resp : toolMessage.getResponses()) {
                     sb.append("[TOOL: ").append(resp.name()).append(" (id: ").append(resp.id()).append(")]\n")
-                      .append(resp.responseData()).append("\n");
+                            .append(resp.responseData()).append("\n");
                 }
             }
         } else {
@@ -211,15 +219,13 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
                 if (assistantMessage.getToolCalls() != null && !assistantMessage.getToolCalls().isEmpty()) {
                     for (var tc : assistantMessage.getToolCalls()) {
                         sb.append("[CALL TOOL: ").append(tc.name()).append(" (id: ").append(tc.id()).append(")]\n")
-                          .append(tc.arguments()).append("\n");
+                                .append(tc.arguments()).append("\n");
                     }
                 }
             }
         }
         return sb.toString().trim();
     }
-
-
 
     private String getHighCardinalityKeyValue(Observation.Context context, String key) {
         return context.getHighCardinalityKeyValues().stream()
@@ -237,7 +243,8 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
     }
 
     private boolean isSensitiveKey(String key) {
-        if (key == null) return false;
+        if (key == null)
+            return false;
         // Exact match or prefix match (e.g. gen_ai.prompt.0.content)
         return SENSITIVE_KEYS.contains(key) || key.startsWith("gen_ai.prompt.") || key.startsWith("gen_ai.completion.");
     }
@@ -264,4 +271,3 @@ public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
         return Ordered.LOWEST_PRECEDENCE;
     }
 }
-

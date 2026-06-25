@@ -94,7 +94,7 @@ management:
       export:
         enabled: false
   tracing:
-    sampling:
+()    sampling:
       probability: 1.0
   # OTLP export is configured via standard OTel environment variables read by
   # spring-boot-starter-opentelemetry (configured in .env and loaded by run.ps1):
