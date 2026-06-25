@@ -83,8 +83,16 @@ public class McpReviewAgent {
 
         org.akj.reviewer.config.ReviewContextHolder.set(new org.akj.reviewer.config.ReviewContext(author, repoFullName + "#" + prNumber));
 
-        io.micrometer.observation.Observation observation = 
-            io.micrometer.observation.Observation.start("review-pipeline", observationRegistry);
+        io.micrometer.observation.Observation.Scope originalScope = observationRegistry.getCurrentObservationScope();
+        observationRegistry.setCurrentObservationScope(null);
+        io.micrometer.observation.Observation observation;
+        try (io.opentelemetry.context.Scope otelScope = io.opentelemetry.context.Context.root().makeCurrent()) {
+            observation = io.micrometer.observation.Observation.start("review-pipeline", observationRegistry);
+        } finally {
+            observationRegistry.setCurrentObservationScope(originalScope);
+        }
+
+        observation.highCardinalityKeyValue("langfuse.trace.input", "Review PR " + repoFullName + " #" + prNumber);
 
         try (io.micrometer.observation.Observation.Scope scope = observation.openScope()) {
             String systemPrompt = loadSystemPrompt();
@@ -98,7 +106,6 @@ public class McpReviewAgent {
             // Build a ChatClient with MCP tools registered for this request
             ChatClient client = chatClientBuilder
                     .defaultSystem(systemPrompt)
-                    .defaultAdvisors(new org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor())
                     .build();
 
             String result = client.prompt()
@@ -112,6 +119,7 @@ public class McpReviewAgent {
                     repoFullName, prNumber,
                     result != null ? result.substring(0, Math.min(200, result.length())) + "..." : "(null)");
 
+            observation.highCardinalityKeyValue("langfuse.trace.output", result);
         } catch (Exception e) {
             observation.error(e);
             log.error("MCP agent review failed for {}/pull/{}", repoFullName, prNumber, e);

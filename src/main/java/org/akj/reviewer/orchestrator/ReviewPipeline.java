@@ -49,17 +49,30 @@ public class ReviewPipeline {
 
         org.akj.reviewer.config.ReviewContextHolder.set(new org.akj.reviewer.config.ReviewContext(userId, sessionId));
 
-        io.micrometer.observation.Observation observation = 
-            io.micrometer.observation.Observation.start("review-pipeline", observationRegistry);
+        io.micrometer.observation.Observation.Scope originalScope = observationRegistry.getCurrentObservationScope();
+        observationRegistry.setCurrentObservationScope(null);
+        io.micrometer.observation.Observation observation;
+        try (io.opentelemetry.context.Scope otelScope = io.opentelemetry.context.Context.root().makeCurrent()) {
+            observation = io.micrometer.observation.Observation.start("review-pipeline", observationRegistry);
+        } finally {
+            observationRegistry.setCurrentObservationScope(originalScope);
+        }
+
+        // Build a readable summary of the PR / files being reviewed as input
+        String inputSummary = String.format("Repository: %s\nPR Number: %d\nTitle: %s\nFiles: %s",
+            context.repoFullName(), context.prNumber(), context.prTitle(), context.changedFiles());
+        observation.highCardinalityKeyValue("langfuse.trace.input", inputSummary);
 
         try (io.micrometer.observation.Observation.Scope scope = observation.openScope()) {
             List<ReviewAgent> enabledAgents = filterEnabledAgents();
 
             if (enabledAgents.isEmpty()) {
                 log.warn("No agents enabled for review");
-                return new ReviewResult(
+                ReviewResult emptyResult = new ReviewResult(
                     "## AI Code Review\n\nNo review agents are currently enabled.",
                     List.of());
+                observation.highCardinalityKeyValue("langfuse.trace.output", emptyResult.markdownBody());
+                return emptyResult;
             }
 
             log.info("Running {} agents on PR #{} — languages: {}",
@@ -76,7 +89,9 @@ public class ReviewPipeline {
                 log.warn("{} agent(s) returned no findings", failedCount);
             }
 
-            return synthesizer.synthesize(results, context);
+            ReviewResult result = synthesizer.synthesize(results, context);
+            observation.highCardinalityKeyValue("langfuse.trace.output", result.markdownBody());
+            return result;
         } catch (Exception e) {
             observation.error(e);
             throw e;

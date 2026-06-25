@@ -28,7 +28,9 @@
       "Bash(MSYS2_ARG_CONV_EXCL=\"*\" docker run *)",
       "Bash(docker compose *)",
       "Bash(curl *)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Skill(mongodb:mongodb-natural-language-querying)",
+      "Bash(gh auth *)"
     ]
   }
 }

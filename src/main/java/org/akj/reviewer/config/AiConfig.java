@@ -48,9 +48,7 @@ public class AiConfig {
 
     @Bean
     public ChatClient chatClient(ChatClient.Builder builder) {
-        return builder
-            .defaultAdvisors(new org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor())
-            .build();
+        return builder.build();
     }
 
     @Bean(destroyMethod = "shutdown")

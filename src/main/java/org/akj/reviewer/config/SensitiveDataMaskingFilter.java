@@ -7,6 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.observation.ChatModelObservationContext;
+import org.springframework.ai.content.Content;
+import org.springframework.util.CollectionUtils;
+import org.springframework.core.Ordered;
 
 import java.util.List;
 import java.util.Set;
@@ -31,18 +35,25 @@ import java.util.regex.Pattern;
  * </ul>
  */
 @Component
-public class SensitiveDataMaskingFilter implements ObservationFilter {
+public class SensitiveDataMaskingFilter implements ObservationFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(SensitiveDataMaskingFilter.class);
 
     // Observation attribute keys that may carry raw prompt/completion text.
     private static final Set<String> SENSITIVE_KEYS = Set.of(
             "gen_ai.prompt",
-            "gen_ai.completion"
+            "gen_ai.completion",
+            "spring.ai.tool.call.arguments",
+            "spring.ai.tool.call.result",
+            "langfuse.observation.input",
+            "langfuse.observation.output",
+            "langfuse.trace.input",
+            "langfuse.trace.output"
     );
 
     // Prefix filter — only mask observations produced by Spring AI
     private static final String SPRING_AI_PREFIX = "spring.ai.";
+    private static final String GEN_AI_PREFIX = "gen_ai.";
 
     // --- masking patterns (applied in order) ---
 
@@ -76,18 +87,51 @@ public class SensitiveDataMaskingFilter implements ObservationFilter {
     @Override
     public Observation.Context map(Observation.Context context) {
         String name = context.getName();
-        if (name == null || (!name.startsWith(SPRING_AI_PREFIX) && !name.equals("review-pipeline"))) {
+        if (name == null || (!name.startsWith(SPRING_AI_PREFIX) && !name.startsWith(GEN_AI_PREFIX) && !name.equals("review-pipeline"))) {
             return context;
         }
 
-        // Inject user and session ID from current context if available
-        ReviewContext reviewCtx = ReviewContextHolder.get();
-        if (reviewCtx != null) {
-            context.addHighCardinalityKeyValue(KeyValue.of("langfuse.user.id", reviewCtx.userId()));
-            context.addHighCardinalityKeyValue(KeyValue.of("langfuse.session.id", reviewCtx.sessionId()));
+        // 1. If it's a ChatModel observation, extract prompts (and completions if response is present).
+        //    Note: for streaming calls (DeepSeekChatModel.internalStream), context.getResponse()
+        //    is null when map() runs because observation.stop() is called via doFinally BEFORE
+        //    MessageAggregator calls setResponse(). For non-streaming calls, it is present here.
+        if (context instanceof ChatModelObservationContext chatModelObservationContext) {
+            var prompts = processPrompts(chatModelObservationContext);
+            if (!prompts.isEmpty()) {
+                String promptText = String.join("\n", prompts);
+                setHighCardinalityKeyValue(context, "gen_ai.prompt", promptText);
+                setHighCardinalityKeyValue(context, "langfuse.observation.input", promptText);
+            }
+            var response = chatModelObservationContext.getResponse();
+            if (response != null) {
+                var completions = processCompletions(chatModelObservationContext);
+                if (!completions.isEmpty()) {
+                    String completionText = String.join("\n", completions);
+                    setHighCardinalityKeyValue(context, "gen_ai.completion", completionText);
+                    setHighCardinalityKeyValue(context, "langfuse.observation.output", completionText);
+                }
+            }
         }
 
-        if (!maskEnabled || !name.startsWith(SPRING_AI_PREFIX)) {
+        // 2. Inject user, session, and trace name from current context if available
+        ReviewContext reviewCtx = ReviewContextHolder.get();
+        if (reviewCtx != null) {
+            setHighCardinalityKeyValue(context, "langfuse.user.id", reviewCtx.userId());
+            setHighCardinalityKeyValue(context, "langfuse.session.id", reviewCtx.sessionId());
+            setHighCardinalityKeyValue(context, "langfuse.trace.name", "review-pipeline");
+        }
+
+        // 3. Map tool arguments and results to langfuse input/output
+        String toolArgs = getHighCardinalityKeyValue(context, "spring.ai.tool.call.arguments");
+        if (toolArgs != null) {
+            setHighCardinalityKeyValue(context, "langfuse.observation.input", toolArgs);
+        }
+        String toolResult = getHighCardinalityKeyValue(context, "spring.ai.tool.call.result");
+        if (toolResult != null) {
+            setHighCardinalityKeyValue(context, "langfuse.observation.output", toolResult);
+        }
+
+        if (!maskEnabled || (!name.startsWith(SPRING_AI_PREFIX) && !name.startsWith(GEN_AI_PREFIX))) {
             return context;
         }
 
@@ -104,8 +148,13 @@ public class SensitiveDataMaskingFilter implements ObservationFilter {
                 })
                 .toList();
 
-        // Replace all high-cardinality key-values with the masked set
-        context.getHighCardinalityKeyValues().forEach(kv -> context.removeHighCardinalityKeyValues(kv.getKey()));
+        // Replace all high-cardinality key-values with the masked set.
+        // Snapshot keys first to avoid concurrent-modification if getHighCardinalityKeyValues()
+        // returns a live collection view that is modified by removeHighCardinalityKeyValues().
+        var keysToRemove = context.getHighCardinalityKeyValues().stream()
+                .map(KeyValue::getKey)
+                .toList();
+        keysToRemove.forEach(context::removeHighCardinalityKeyValues);
         updated.forEach(context::addHighCardinalityKeyValue);
 
         return context;
@@ -114,6 +163,78 @@ public class SensitiveDataMaskingFilter implements ObservationFilter {
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
+
+    private List<String> processPrompts(ChatModelObservationContext chatModelObservationContext) {
+        var request = chatModelObservationContext.getRequest();
+        if (request == null) return List.of();
+        var instructions = request.getInstructions();
+        if (CollectionUtils.isEmpty(instructions)) {
+            return List.of();
+        }
+        return instructions.stream()
+                .map(this::formatMessage)
+                .filter(text -> !text.isBlank())
+                .toList();
+    }
+
+    private List<String> processCompletions(ChatModelObservationContext chatModelObservationContext) {
+        var response = chatModelObservationContext.getResponse();
+        if (response == null || response.getResults() == null) {
+            return List.of();
+        }
+        return response.getResults().stream()
+                .filter(generation -> generation.getOutput() != null)
+                .map(generation -> formatMessage(generation.getOutput()))
+                .filter(text -> !text.isBlank())
+                .toList();
+    }
+
+    private String formatMessage(org.springframework.ai.chat.messages.Message message) {
+        if (message == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        if (message instanceof org.springframework.ai.chat.messages.ToolResponseMessage toolMessage) {
+            if (toolMessage.getResponses() != null) {
+                for (var resp : toolMessage.getResponses()) {
+                    sb.append("[TOOL: ").append(resp.name()).append(" (id: ").append(resp.id()).append(")]\n")
+                      .append(resp.responseData()).append("\n");
+                }
+            }
+        } else {
+            String role = message.getMessageType() != null ? message.getMessageType().name() : "UNKNOWN";
+            String text = message.getText();
+            if (text != null && !text.isBlank()) {
+                sb.append("[").append(role).append("]\n").append(text).append("\n");
+            }
+            if (message instanceof org.springframework.ai.chat.messages.AssistantMessage assistantMessage) {
+                if (assistantMessage.getToolCalls() != null && !assistantMessage.getToolCalls().isEmpty()) {
+                    for (var tc : assistantMessage.getToolCalls()) {
+                        sb.append("[CALL TOOL: ").append(tc.name()).append(" (id: ").append(tc.id()).append(")]\n")
+                          .append(tc.arguments()).append("\n");
+                    }
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
+
+
+
+    private String getHighCardinalityKeyValue(Observation.Context context, String key) {
+        return context.getHighCardinalityKeyValues().stream()
+                .filter(kv -> key.equals(kv.getKey()))
+                .map(KeyValue::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void setHighCardinalityKeyValue(Observation.Context context, String key, String value) {
+        if (value != null) {
+            context.removeHighCardinalityKeyValues(key);
+            context.addHighCardinalityKeyValue(KeyValue.of(key, value));
+        }
+    }
 
     private boolean isSensitiveKey(String key) {
         if (key == null) return false;
@@ -137,4 +258,10 @@ public class SensitiveDataMaskingFilter implements ObservationFilter {
         result = EMAIL.matcher(result).replaceAll("[EMAIL REDACTED]");
         return result;
     }
+
+    @Override
+    public int getOrder() {
+        return Ordered.LOWEST_PRECEDENCE;
+    }
 }
+

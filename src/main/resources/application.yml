@@ -10,6 +10,16 @@ spring:
       client:
         observations:
           log-prompt: true
+    observability:
+      tool:
+        call:
+          arguments:
+            enabled: true
+          result:
+            enabled: true
+    tools:
+      observations:
+        include-content: true
     deepseek:
       api-key: ${DEEPSEEK_API_KEY}
       chat:
