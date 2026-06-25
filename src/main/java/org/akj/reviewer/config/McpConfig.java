@@ -40,6 +40,8 @@ public class McpConfig {
         log.info("Registering MCP tools from {} client(s): {}",
                 mcpClients.size(),
                 mcpClients.stream().map(c -> c.getClientInfo().name()).toList());
-        return new SyncMcpToolCallbackProvider(mcpClients);
+        return SyncMcpToolCallbackProvider.builder()
+                .mcpClients(mcpClients)
+                .build();
     }
 }
