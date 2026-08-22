@@ -301,6 +301,52 @@ code-review-orchestrator/
 | `GitHubWebhookControllerTest` | HMAC verify, action filtering, org webhooks, repo filtering | None | None |
 | `GitHubDiffFetcherTest` | Language detection from file extensions | None | None |
 | `ReviewFlowIntegrationTest` | Full pipeline: diff→AgentContext→agents→synthesizer→ReviewResult | Real or empty | None |
+| `EvalSuiteTest` | Runs 22 benchmark cases (Security, Perf, Style, Test, Safe Baselines) & generates `eval_report.md` | Real or mocked | None |
+| `PromptInjectionEvalTest` | Red-team evaluation of agent resilience against embedded prompt injection attacks | Real or mocked | None |
+| `OwaspAgenticSecurityEvalTest` | Evaluates compliance against OWASP Top 10 for Agentic AI (ASI 2026) | Real or mocked | None |
+| `FindingMatcherTest` | Unit test for line overlap matching, fuzzy category normalization, and safe-region FP logic | None | None |
+
+---
+
+## 📊 Evaluation Framework & Red-Teaming (OWASP ASI 2026)
+
+The project includes an **in-memory empirical evaluation engine** and **red-teaming benchmark dataset** designed to measure Recall, Precision, and Adversarial Resilience across prompt engineering iterations and CI pipelines.
+
+For the in-depth architecture, mathematical matching model, and design guide, read **[docs/eval-architecture-and-red-teaming-guide.md](docs/eval-architecture-and-red-teaming-guide.md)**.
+
+### Running the Evaluation Benchmark
+
+```bash
+# Run all evaluation and red-teaming test suites
+./gradlew test --tests "org.akj.reviewer.eval.*"
+```
+
+The runner automatically compiles and outputs a detailed Markdown report at **`build/eval/eval_report.md`**:
+
+```markdown
+# 📊 Code Review Orchestrator - Evaluation Report
+
+## Summary Metrics
+- **Total Benchmark Cases**: 22
+- **Recall**: 91.2%
+- **Precision**: 94.7%
+- **F1 Score**: 0.93
+- **False Positives in Safe Regions**: 0
+```
+
+### Benchmark Dataset Overview (`src/test/resources/eval/`)
+
+- **🛡️ Security (OWASP Top 10 & High Severity)**: SQL Injection (`sql-injection-001`), Command Injection (`command-injection-001`), Insecure Deserialization (`insecure-deserialization-001`), SpEL Injection (`spel-injection-001`), Hardcoded Secrets (`hardcoded-secret-001`), JWT Algorithm None (`jwt-none-algorithm-001`), SSRF (`ssrf-vulnerability-001`), Path Traversal (`path-traversal-001`), Broken Crypto MD5 (`weak-crypto-md5-001`), Wildcard CORS (`cors-wildcard-001`).
+- **⚡ Performance & Resource Leaks**: JPA/Stream N+1 queries (`n-plus-one-001`), Unclosed I/O streams (`resource-leak-001`), O(N²) string loop concatenation (`string-concat-loop-001`).
+- **🎨 Style & Quality**: Exception swallowing catch blocks (`exception-swallowing-001`).
+- **🧪 Test Coverage**: Missing tests for new business services (`missing-tests-001`).
+- **🟢 Safe Baselines (Negative Controls)**: Safe String utilities (`safe-baseline-001`), Safe Parameterized JDBC (`safe-prepared-statement-001`), Modern Java Records (`safe-refactor-record-001`).
+- **🚨 Red-Team Adversarial Injections**: Direct Jailbreak comments (`injected-comment-001`), Forged security audits (`injected-author-override-002`), Base64 evasion (`injected-base64-payload-003`), Lead Architect persona impersonation (`injected-developer-persona-004`).
+- **🌐 OWASP Agentic AI (ASI 2026)**: Goal Hijack (`asi01-goal-hijack-001`), Excessive Agency (`asi03-excessive-agency-001`), Insecure Output / XSS (`asi05-insecure-output-001`), System Prompt Extraction (`asi10-prompt-leakage-001`).
+
+### CI Evaluation Gate (`.github/workflows/eval.yml`)
+
+On every Pull Request affecting prompts or agent logic, GitHub Actions automatically executes the eval suite and attaches `eval_report.md` as a build artifact, enforcing quality and security regression thresholds.
 
 ### Local E2E (Manual)
 

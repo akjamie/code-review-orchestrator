@@ -40,6 +40,12 @@ Micrometer `Observation` → OTel `Span` before export.
 Spring AI automatically creates `Observation` instances for every `ChatClient` call using
 `ChatModelObservationContext` — the same context our custom components read and enrich.
 
+### 1.1 DeepSeek Auto-Configuration
+The DeepSeek model integration is auto-configured via `spring-ai-autoconfigure-model-deepseek.jar` through `DeepSeekChatAutoConfiguration`:
+- **Properties**: Binds configurations under the `spring.ai.deepseek.chat.*` namespace (e.g. `temperature`, `model`).
+- **Instantiation**: Creates the `DeepSeekChatModel` bean and injects the `ObservationRegistry` directly into its builder.
+- **Tracing Mechanism**: Observability is baked natively inside the model class (`DeepSeekChatModel`). When `call()` or `stream()` is invoked, it creates observations dynamically using `ChatModelObservationDocumentation.CHAT_MODEL_OPERATION` without requiring external decorators or proxies.
+
 ---
 
 ## 2. Full Call Chain (per LLM invocation)
@@ -107,6 +113,13 @@ public boolean test(String name, Observation.Context context) {
 
 **Effect:** HTTP server spans, DB spans, scheduler spans are all discarded here. Zero
 overhead for non-AI observations.
+
+### 3.1.1 Trace/Span Decision Logic Hierarchy
+Every core component in Spring AI (models, advisors, tool callbacks) initializes observations unconditionally.
+- **ChatModel Spans**: Emitted with name `gen_ai.client.operation` (or `spring.ai.chat`) inside the model call path.
+- **Advisor Spans**: Emitted with name `spring.ai.advisor` during chat client advisor executions.
+- **Tool Spans**: Emitted with name `gen_ai.tool_call` when model functions are invoked.
+`TracingObservationPredicate` acts as a selective filter/gate. Spans that do not match the predicate pattern are demoted to no-ops at creation time, bypassing downstream filters, handlers, and exporter queues.
 
 ---
 
@@ -615,3 +628,27 @@ private void setHighCardinalityKeyValue(Observation.Context context, String key,
 
 This is the correct pattern when writing to Micrometer's observation context outside the
 initial observation construction — always remove before add.
+
+---
+
+### 9.7 Differentiating Spring Boot Web/System Traces vs. Spring AI Traces
+
+When running a standard Spring Boot web application, typical system spans (HTTP requests, database queries) are emitted alongside Spring AI spans. They can be distinguished and isolated using the following techniques:
+
+1. **Naming Conventions**:
+   - HTTP Server requests: `GET /api/review/{pr}` (from Spring Boot webmvc observations)
+   - Spring AI LLM operations: `gen_ai.client.operation`
+   - Spring AI Advisors: `spring.ai.advisor`
+   - Spring AI Tool Calls: `gen_ai.tool_call`
+2. **Filtering at the Micrometer Level**:
+   Use `TracingObservationPredicate` to drop HTTP server and system spans before they reach the exporter queues:
+   ```java
+   public boolean test(String name, Observation.Context context) {
+       // Filter out standard Boot web/database traces to avoid polluting the AI tracing backend
+       return name != null && (name.startsWith("gen_ai") || name.startsWith("spring.ai") || name.equals("review-pipeline"));
+   }
+   ```
+3. **Filtering in Analytics Backends**:
+   - Spring AI spans contain domain-specific attributes such as `gen_ai.system` (`deepseek`), `gen_ai.usage.input_tokens`, and `langfuse.observation.input`.
+   - Spring Boot system spans carry HTTP and process-related attributes (`http.request.method`, `url.path`, `db.system`).
+   These distinct namespaces allow backends (like Langfuse or OpenTelemetry collectors) to cleanly route or query traces based on attribute existence.

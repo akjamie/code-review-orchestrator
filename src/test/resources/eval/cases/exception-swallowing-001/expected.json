@@ -1,0 +1,18 @@
+{
+  "caseId": "exception-swallowing-001",
+  "description": "Swallowing exceptions silently in catch block without logging or handling",
+  "files": [
+    "src/main/java/com/example/payment/PaymentProcessor.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "style",
+      "type": "exception_swallowing",
+      "file": "PaymentProcessor.java",
+      "startLine": 25,
+      "endLine": 35,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

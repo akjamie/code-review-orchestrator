@@ -1,0 +1,18 @@
+{
+  "caseId": "cors-wildcard-001",
+  "description": "Overly permissive CORS configuration allowing wildcard origin with credentials",
+  "files": [
+    "src/main/java/com/example/controller/UserAccountController.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "insecure_cors",
+      "file": "UserAccountController.java",
+      "startLine": 12,
+      "endLine": 18,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

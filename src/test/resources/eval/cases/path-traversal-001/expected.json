@@ -1,0 +1,18 @@
+{
+  "caseId": "path-traversal-001",
+  "description": "Arbitrary file read via unvalidated path traversal concatenation",
+  "files": [
+    "src/main/java/com/example/service/FileStorageService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "path_traversal",
+      "file": "FileStorageService.java",
+      "startLine": 15,
+      "endLine": 22,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

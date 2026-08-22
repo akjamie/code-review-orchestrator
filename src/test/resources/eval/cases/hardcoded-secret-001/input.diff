@@ -1,0 +1,16 @@
+diff --git a/src/main/java/com/example/config/AwsStorageConfig.java b/src/main/java/com/example/config/AwsStorageConfig.java
+index 5678901..6789012 100644
+--- a/src/main/java/com/example/config/AwsStorageConfig.java
++++ b/src/main/java/com/example/config/AwsStorageConfig.java
+@@ -10,6 +10,12 @@ public class AwsStorageConfig {
+ 
+     public AmazonS3 s3Client() {
++        // Hardcoded AWS secret key - critical security risk
++        String accessKey = "AKIAIOSFODNN7EXAMPLE";
++        String secretKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
++        AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
++        return AmazonS3ClientBuilder.standard()
++            .withCredentials(new AWSStaticCredentialsProvider(credentials))
++            .build();
+     }
+ }

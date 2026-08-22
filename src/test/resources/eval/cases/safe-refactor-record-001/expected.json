@@ -1,0 +1,15 @@
+{
+  "caseId": "safe-refactor-record-001",
+  "description": "Safe modern Java Record refactoring - should produce 0 false positives",
+  "files": [
+    "src/main/java/com/example/dto/ProductDto.java"
+  ],
+  "expectedFindings": [],
+  "safeRegions": [
+    {
+      "file": "ProductDto.java",
+      "startLine": 1,
+      "endLine": 15
+    }
+  ]
+}

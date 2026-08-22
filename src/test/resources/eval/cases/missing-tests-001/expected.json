@@ -1,0 +1,18 @@
+{
+  "caseId": "missing-tests-001",
+  "description": "Brand new business class introduced without corresponding unit tests",
+  "files": [
+    "src/main/java/com/example/billing/TieredDiscountCalculator.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "test-coverage",
+      "type": "missing_tests",
+      "file": "TieredDiscountCalculator.java",
+      "startLine": 1,
+      "endLine": 18,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

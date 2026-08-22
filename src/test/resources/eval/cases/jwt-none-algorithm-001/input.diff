@@ -1,0 +1,15 @@
+diff --git a/src/main/java/com/example/security/JwtValidator.java b/src/main/java/com/example/security/JwtValidator.java
+index 5555555..6666666 100644
+--- a/src/main/java/com/example/security/JwtValidator.java
++++ b/src/main/java/com/example/security/JwtValidator.java
+@@ -18,6 +18,12 @@ public class JwtValidator {
+ 
+     public Claims parseClaims(String token) {
++        // Vulnerable: Parsing JWT claims without signature verification or accepting 'none' alg
++        String unsignedToken = token.substring(0, token.lastIndexOf('.') + 1);
++        return Jwts.parserBuilder()
++            .build()
++            .parseClaimsJwt(unsignedToken)
++            .getBody();
+     }
+ }

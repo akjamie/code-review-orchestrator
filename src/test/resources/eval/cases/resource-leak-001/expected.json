@@ -1,0 +1,18 @@
+{
+  "caseId": "resource-leak-001",
+  "description": "Unclosed I/O streams leading to file descriptor / connection leak",
+  "files": [
+    "src/main/java/com/example/service/ReportService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "performance",
+      "type": "resource_leak",
+      "file": "ReportService.java",
+      "startLine": 20,
+      "endLine": 27,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

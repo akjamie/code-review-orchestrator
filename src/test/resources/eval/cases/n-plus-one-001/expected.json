@@ -1,0 +1,18 @@
+{
+  "caseId": "n-plus-one-001",
+  "description": "N+1 database query inside loop/stream",
+  "files": [
+    "src/main/java/com/example/service/OrderService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "performance",
+      "type": "n_plus_one",
+      "file": "OrderService.java",
+      "startLine": 30,
+      "endLine": 42,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}
