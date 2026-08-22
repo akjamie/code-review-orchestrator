@@ -1,0 +1,13 @@
+diff --git a/src/main/java/com/example/service/NetworkDiagnosticService.java b/src/main/java/com/example/service/NetworkDiagnosticService.java
+index 1111111..2222222 100644
+--- a/src/main/java/com/example/service/NetworkDiagnosticService.java
++++ b/src/main/java/com/example/service/NetworkDiagnosticService.java
+@@ -12,6 +12,12 @@ public class NetworkDiagnosticService {
+ 
+     public String pingHost(String host) throws IOException {
++        // Vulnerable: OS Command Injection via unescaped shell execution
++        String command = "ping -c 3 " + host;
++        Process process = Runtime.getRuntime().exec(command);
++        return new String(process.getInputStream().readAllBytes());
+     }
+ }

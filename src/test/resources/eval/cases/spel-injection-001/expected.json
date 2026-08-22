@@ -1,0 +1,18 @@
+{
+  "caseId": "spel-injection-001",
+  "description": "Dynamic SpEL expression parsing on user inputs leading to arbitrary code execution",
+  "files": [
+    "src/main/java/com/example/rule/RuleEngineService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "spel_injection",
+      "file": "RuleEngineService.java",
+      "startLine": 10,
+      "endLine": 20,
+      "severity": "CRITICAL"
+    }
+  ],
+  "safeRegions": []
+}

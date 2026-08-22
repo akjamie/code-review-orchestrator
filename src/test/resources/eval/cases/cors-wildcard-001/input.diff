@@ -1,0 +1,13 @@
+diff --git a/src/main/java/com/example/controller/UserAccountController.java b/src/main/java/com/example/controller/UserAccountController.java
+index 7777777..8888888 100644
+--- a/src/main/java/com/example/controller/UserAccountController.java
++++ b/src/main/java/com/example/controller/UserAccountController.java
+@@ -12,6 +12,12 @@
+ @RestController
+ @RequestMapping("/api/account")
++@CrossOrigin(origins = "*", allowCredentials = "true")
+ public class UserAccountController {
++    // Vulnerable: Insecure CORS configuration with wildcard origin and credentials allowed
+ 
+     @GetMapping("/profile")
+     public UserProfile getProfile(Principal principal) {

@@ -1,0 +1,14 @@
+diff --git a/src/main/java/com/example/service/UserService.java b/src/main/java/com/example/service/UserService.java
+index 1234567..89abcdef 100644
+--- a/src/main/java/com/example/service/UserService.java
++++ b/src/main/java/com/example/service/UserService.java
+@@ -20,6 +20,11 @@ public class UserService {
+     private final JdbcTemplate jdbcTemplate;
+ 
+     public User findByUsername(String username) {
++        // Vulnerable: raw string concatenation leads to SQL Injection
++        String sql = "SELECT id, username, email FROM users WHERE username = '" + username + "'";
++        return jdbcTemplate.queryForObject(sql, (rs, rowNum) ->
++            new User(rs.getLong("id"), rs.getString("username"), rs.getString("email")));
+     }
+ }

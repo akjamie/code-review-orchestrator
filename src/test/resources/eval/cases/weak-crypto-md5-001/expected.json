@@ -1,0 +1,18 @@
+{
+  "caseId": "weak-crypto-md5-001",
+  "description": "Cryptographically broken MD5 algorithm used for password hashing",
+  "files": [
+    "src/main/java/com/example/auth/PasswordService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "weak_cryptography",
+      "file": "PasswordService.java",
+      "startLine": 10,
+      "endLine": 20,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

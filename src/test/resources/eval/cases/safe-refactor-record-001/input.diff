@@ -1,0 +1,22 @@
+diff --git a/src/main/java/com/example/dto/ProductDto.java b/src/main/java/com/example/dto/ProductDto.java
+index 2345678..3456789 100644
+--- a/src/main/java/com/example/dto/ProductDto.java
++++ b/src/main/java/com/example/dto/ProductDto.java
+@@ -1,15 +1,8 @@
+ package com.example.dto;
+ 
+-public class ProductDto {
+-    private Long id;
+-    private String name;
+-    public Long getId() { return id; }
+-    public void setId(Long id) { this.id = id; }
+-    public String getName() { return name; }
+-    public void setName(String name) { this.name = name; }
+-}
++import java.math.BigDecimal;
++
++public record ProductDto(
++    Long id,
++    String name,
++    BigDecimal price
++) {}

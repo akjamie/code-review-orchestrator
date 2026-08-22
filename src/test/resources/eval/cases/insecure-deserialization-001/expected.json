@@ -1,0 +1,18 @@
+{
+  "caseId": "insecure-deserialization-001",
+  "description": "Unrestricted Java ObjectInputStream deserialization leading to Remote Code Execution (RCE)",
+  "files": [
+    "src/main/java/com/example/cache/SessionCacheService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "insecure_deserialization",
+      "file": "SessionCacheService.java",
+      "startLine": 15,
+      "endLine": 23,
+      "severity": "CRITICAL"
+    }
+  ],
+  "safeRegions": []
+}

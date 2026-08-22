@@ -1,0 +1,13 @@
+diff --git a/src/main/java/com/example/auth/PasswordService.java b/src/main/java/com/example/auth/PasswordService.java
+index 6666666..7777777 100644
+--- a/src/main/java/com/example/auth/PasswordService.java
++++ b/src/main/java/com/example/auth/PasswordService.java
+@@ -10,6 +10,13 @@ public class PasswordService {
+ 
+     public String hashPassword(String rawPassword) throws NoSuchAlgorithmException {
++        // Vulnerable: Using broken MD5 hash for password storage instead of BCrypt/Argon2
++        MessageDigest md = MessageDigest.getInstance("MD5");
++        byte[] hash = md.digest(rawPassword.getBytes(StandardCharsets.UTF_8));
++        return HexFormat.of().formatHex(hash);
+     }
+ }

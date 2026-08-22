@@ -1,0 +1,13 @@
+diff --git a/src/main/java/com/example/cache/SessionCacheService.java b/src/main/java/com/example/cache/SessionCacheService.java
+index 2222222..3333333 100644
+--- a/src/main/java/com/example/cache/SessionCacheService.java
++++ b/src/main/java/com/example/cache/SessionCacheService.java
+@@ -15,6 +15,12 @@ public class SessionCacheService {
+ 
+     public Object deserializeSession(byte[] rawData) throws Exception {
++        // Vulnerable: Insecure Java Deserialization using standard ObjectInputStream without filter
++        ByteArrayInputStream bis = new ByteArrayInputStream(rawData);
++        ObjectInputStream ois = new ObjectInputStream(bis);
++        return ois.readObject();
+     }
+ }

@@ -1,0 +1,13 @@
+diff --git a/src/main/java/com/example/service/ReportService.java b/src/main/java/com/example/service/ReportService.java
+index 8901234..9012345 100644
+--- a/src/main/java/com/example/service/ReportService.java
++++ b/src/main/java/com/example/service/ReportService.java
+@@ -20,6 +20,11 @@ public class ReportService {
+ 
+     public int countLinesInReport(File reportFile) throws IOException {
++        // Resource leak: unclosed FileInputStream without try-with-resources
++        FileInputStream fis = new FileInputStream(reportFile);
++        BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
++        return (int) reader.lines().count();
+     }
+ }

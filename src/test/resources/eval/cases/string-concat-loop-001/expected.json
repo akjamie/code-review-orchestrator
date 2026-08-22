@@ -1,0 +1,18 @@
+{
+  "caseId": "string-concat-loop-001",
+  "description": "Repeated String concatenation with '+=' in loop creating excessive garbage allocations",
+  "files": [
+    "src/main/java/com/example/export/CsvExporter.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "performance",
+      "type": "string_concat_loop",
+      "file": "CsvExporter.java",
+      "startLine": 15,
+      "endLine": 25,
+      "severity": "MEDIUM"
+    }
+  ],
+  "safeRegions": []
+}

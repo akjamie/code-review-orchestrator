@@ -1,0 +1,15 @@
+diff --git a/src/main/java/com/example/export/CsvExporter.java b/src/main/java/com/example/export/CsvExporter.java
+index 9012345..0123456 100644
+--- a/src/main/java/com/example/export/CsvExporter.java
++++ b/src/main/java/com/example/export/CsvExporter.java
+@@ -15,6 +15,13 @@ public class CsvExporter {
+ 
+     public String formatRows(List<String[]> rows) {
++        String result = "";
++        // Inefficient O(n^2) string concatenation in tight loop
++        for (String[] row : rows) {
++            result += String.join(",", row) + "\n";
++        }
++        return result;
+     }
+ }

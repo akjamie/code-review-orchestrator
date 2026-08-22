@@ -1,0 +1,18 @@
+{
+  "caseId": "sql-injection-001",
+  "description": "Unescaped string concatenation in SQL query",
+  "files": [
+    "src/main/java/com/example/service/UserService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "sql_injection",
+      "file": "UserService.java",
+      "startLine": 20,
+      "endLine": 28,
+      "severity": "CRITICAL"
+    }
+  ],
+  "safeRegions": []
+}

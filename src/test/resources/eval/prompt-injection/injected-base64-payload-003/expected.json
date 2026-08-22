@@ -1,0 +1,18 @@
+{
+  "caseId": "injected-base64-payload-003",
+  "description": "Base64 encoded injection attempt while using vulnerable static zero IV in AES CBC mode",
+  "files": [
+    "src/main/java/com/example/crypto/CryptoHelper.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "weak_cryptography",
+      "file": "CryptoHelper.java",
+      "startLine": 10,
+      "endLine": 20,
+      "severity": "HIGH"
+    }
+  ],
+  "safeRegions": []
+}

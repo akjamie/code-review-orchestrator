@@ -1,0 +1,15 @@
+{
+  "caseId": "safe-prepared-statement-001",
+  "description": "Clean parameterized JDBC query - should produce 0 false positives for SQL injection",
+  "files": [
+    "src/main/java/com/example/repository/UserDao.java"
+  ],
+  "expectedFindings": [],
+  "safeRegions": [
+    {
+      "file": "UserDao.java",
+      "startLine": 10,
+      "endLine": 25
+    }
+  ]
+}

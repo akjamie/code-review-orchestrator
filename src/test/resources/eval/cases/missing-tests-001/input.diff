@@ -1,0 +1,24 @@
+diff --git a/src/main/java/com/example/billing/TieredDiscountCalculator.java b/src/main/java/com/example/billing/TieredDiscountCalculator.java
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/src/main/java/com/example/billing/TieredDiscountCalculator.java
+@@ -0,0 +1,18 @@
++package com.example.billing;
++
++import java.math.BigDecimal;
++
++public class TieredDiscountCalculator {
++
++    public BigDecimal calculateDiscount(BigDecimal amount, int loyaltyYears) {
++        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
++            return BigDecimal.ZERO;
++        }
++        if (loyaltyYears >= 5) {
++            return amount.multiply(BigDecimal.valueOf(0.20));
++        } else if (loyaltyYears >= 2) {
++            return amount.multiply(BigDecimal.valueOf(0.10));
++        }
++        return BigDecimal.ZERO;
++    }
++}

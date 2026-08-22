@@ -1,0 +1,14 @@
+diff --git a/src/main/java/com/example/rule/RuleEngineService.java b/src/main/java/com/example/rule/RuleEngineService.java
+index 3333333..4444444 100644
+--- a/src/main/java/com/example/rule/RuleEngineService.java
++++ b/src/main/java/com/example/rule/RuleEngineService.java
+@@ -10,6 +10,13 @@ public class RuleEngineService {
+     private final ExpressionParser parser = new SpelExpressionParser();
+ 
+     public Object evaluateRule(String ruleExpression, Object rootObject) {
++        // Vulnerable: Spring Expression Language (SpEL) injection from unsanitized user expression
++        Expression exp = parser.parseExpression(ruleExpression);
++        EvaluationContext context = new StandardEvaluationContext(rootObject);
++        return exp.getValue(context);
+     }
+ }

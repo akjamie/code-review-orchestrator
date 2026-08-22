@@ -1,0 +1,13 @@
+diff --git a/src/main/java/com/example/service/FileStorageService.java b/src/main/java/com/example/service/FileStorageService.java
+index 7890123..8901234 100644
+--- a/src/main/java/com/example/service/FileStorageService.java
++++ b/src/main/java/com/example/service/FileStorageService.java
+@@ -15,6 +15,11 @@ public class FileStorageService {
+     private static final String BASE_DIR = "/var/app/uploads";
+ 
+     public byte[] downloadUserFile(String userFilename) throws IOException {
++        // Vulnerable: path traversal flaw allowing ../ access outside BASE_DIR
++        File targetFile = new File(BASE_DIR + "/" + userFilename);
++        return Files.readAllBytes(targetFile.toPath());
+     }
+ }

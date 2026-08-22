@@ -1,0 +1,18 @@
+{
+  "caseId": "command-injection-001",
+  "description": "OS Command injection via unvalidated Runtime.getRuntime().exec() parameter concatenation",
+  "files": [
+    "src/main/java/com/example/service/NetworkDiagnosticService.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "command_injection",
+      "file": "NetworkDiagnosticService.java",
+      "startLine": 12,
+      "endLine": 20,
+      "severity": "CRITICAL"
+    }
+  ],
+  "safeRegions": []
+}

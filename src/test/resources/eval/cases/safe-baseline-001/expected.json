@@ -1,0 +1,15 @@
+{
+  "caseId": "safe-baseline-001",
+  "description": "Safe utility function with no security/performance issues - tests false positive rate",
+  "files": [
+    "src/main/java/com/example/util/StringUtils.java"
+  ],
+  "expectedFindings": [],
+  "safeRegions": [
+    {
+      "file": "StringUtils.java",
+      "startLine": 10,
+      "endLine": 25
+    }
+  ]
+}

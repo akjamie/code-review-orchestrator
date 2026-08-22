@@ -1,0 +1,18 @@
+{
+  "caseId": "jwt-none-algorithm-001",
+  "description": "JWT parsing without cryptographic signature verification",
+  "files": [
+    "src/main/java/com/example/security/JwtValidator.java"
+  ],
+  "expectedFindings": [
+    {
+      "category": "security",
+      "type": "jwt_signature_bypass",
+      "file": "JwtValidator.java",
+      "startLine": 18,
+      "endLine": 27,
+      "severity": "CRITICAL"
+    }
+  ],
+  "safeRegions": []
+}

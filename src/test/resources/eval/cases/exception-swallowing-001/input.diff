@@ -1,0 +1,14 @@
+diff --git a/src/main/java/com/example/payment/PaymentProcessor.java b/src/main/java/com/example/payment/PaymentProcessor.java
+index 0123456..1234567 100644
+--- a/src/main/java/com/example/payment/PaymentProcessor.java
++++ b/src/main/java/com/example/payment/PaymentProcessor.java
+@@ -25,6 +25,13 @@ public class PaymentProcessor {
+ 
+     public void processRefund(String transactionId) {
++        try {
++            paymentGateway.sendRefundRequest(transactionId);
++        } catch (Exception e) {
++            // Style / Reliability smell: swallowing critical exception without logging or rethrowing
++        }
+     }
+ }
