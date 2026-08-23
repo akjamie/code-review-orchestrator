@@ -19,13 +19,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
  *
  * Spring AI auto-configures {@link McpSyncClient} beans from application.yml.
  * This config aggregates their tools into a single {@link ToolCallbackProvider}
- * bean that the {@link org.akj.reviewer.agent.McpReviewAgent} injects into its
- * {@link org.springframework.ai.chat.client.ChatClient}.
+ * bean injected into {@link org.akj.reviewer.orchestrator.ReviewPipeline} for
+ * the MCP fetch step.
  *
- * Only active when {@code review.mcp-agent.enabled=true} (the default).
+ * When MCP clients are not configured, no bean is created and the pipeline
+ * automatically falls back to the REST-based {@link org.akj.reviewer.github.GitHubDiffFetcher}.
  */
 @Configuration
-@ConditionalOnProperty(name = "review.mcp-agent.enabled", havingValue = "true", matchIfMissing = true)
 public class McpConfig {
 
     private static final Logger log = LoggerFactory.getLogger(McpConfig.class);

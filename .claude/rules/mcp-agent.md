@@ -1,30 +1,23 @@
-# MCP Review Agent
+# Unified Review Pipeline Architecture
 
 ## Overview
 
-`McpReviewAgent` is the primary code reviewer. Instead of a fan-out of specialist
-agents, it is a **single autonomous agent** that executes a multi-step tool-calling loop:
+The code review orchestrator uses a single, unified pipeline (`ReviewPipeline`) for all code reviews (whether triggered via GitHub Webhook, background API polling, or manual URL trigger).
 
-1. Fetch PR details and diff from GitHub using GitHub MCP tools.
-2. Analyze the diff for security, performance, style, and test coverage issues.
-3. Query Context7 MCP for up-to-date documentation of libraries detected in the diff.
-4. Post a PR review (summary + inline comments) using GitHub MCP tools.
+The pipeline combines the strengths of GitHub MCP tools (for rich context fetching) with parallel specialist subagents and robust REST fallback:
 
----
-
-## Activation
-
-Enabled by default. Disable to fall back to the classic 4-agent pipeline:
-
-```yaml
-review:
-  mcp-agent:
-    enabled: false   # falls back to Security/Performance/Style/TestCoverage agents
-```
+1. **Step 1: Fetch PR Context** — Attempts to fetch PR title, description, author, diff, and changed files using **GitHub MCP tools** via `src/main/resources/prompts/mcp-fetch-pr.txt`. If MCP tools are unavailable or fail, it automatically falls back to direct REST fetch via `GitHubDiffFetcher`.
+2. **Step 2: Parallel Specialist Analysis** — Executes 4 subagents in parallel using Java Virtual Threads via `ReviewOrchestrator`:
+   - `SecurityAgent` (`prompts/security-agent.txt`)
+   - `PerformanceAgent` (`prompts/performance-agent.txt`)
+   - `StyleAgent` (`prompts/style-agent.txt`)
+   - `TestCoverageAgent` (`prompts/testcoverage-agent.txt`)
+3. **Step 3: Synthesis** — `SynthesizerAgent` deduplicates findings across subagents, ranks them by severity (`CRITICAL` > `HIGH` > `MEDIUM` > `LOW` > `INFO`), and compiles the final GitHub-flavored markdown review.
+4. **Step 4: Post Review** — `GitHubReviewPoster` posts the overall summary and inline comments to GitHub via direct REST API with automatic HTTP 422 fallback.
 
 ---
 
-## MCP Servers
+## MCP Tool Configuration
 
 ### GitHub MCP (stdio transport)
 
@@ -46,83 +39,33 @@ spring:
 
 **Prerequisite**: Node.js ≥ 18 + `npx` must be installed on the host.
 
-Key tools provided:
-- `get_pull_request` — fetch PR details
-- `get_pull_request_diff` / `get_pull_request_files` — fetch changed files and diff
-- `create_pull_request_review` — post review with inline comments
-
-### Context7 MCP (SSE transport)
-
-Connected to the remote context7 service:
-
-```yaml
-spring:
-  ai:
-    mcp:
-      client:
-        sse:
-          connections:
-            context7-mcp:
-              url: https://mcp.context7.com/mcp
-```
-
-Key tools provided:
-- `resolve-library-id` — resolve a library name to a Context7 ID
-- `get-library-docs` — retrieve version-specific documentation
-
----
-
-## Tool Registration
+### Tool Registration
 
 `McpConfig` collects all `McpSyncClient` beans auto-configured by Spring AI and
-wraps them in a `SyncMcpToolCallbackProvider`. The `McpReviewAgent` injects this
-provider and registers the tools on each `ChatClient` call via `.toolCallbacks(mcpTools)`.
-
-```java
-ChatClient client = chatClientBuilder
-    .defaultSystem(systemPrompt)
-    .build();
-
-client.prompt()
-    .user(userPrompt)
-    .toolCallbacks(mcpTools)   // ← GitHub + Context7 tools
-    .options(options)
-    .call()
-    .content();
-```
+wraps them in a `SyncMcpToolCallbackProvider`. The `ReviewPipeline` injects this
+provider and uses the tools during the Step 1 fetch phase.
 
 ---
 
-## System Prompt
+## Agent Enablement Flags
 
-Located in `resources/prompts/mcp-review-agent.txt`. Edit without recompiling.
-
-The prompt instructs the model to:
-- Use GitHub tools to fetch PR data
-- Use Context7 tools to validate library/framework API usage
-- Post a structured Markdown review with inline line comments
-
----
-
-## Model Configuration
+Individual specialist subagents can be toggled via `application.yml` or environment variables:
 
 ```yaml
 review:
-  mcp-agent:
-    model: ${MCP_MODEL_NAME:${MODEL_NAME:deepseek-chat}}
-    max-tokens: 8192
-```
-
-Override with environment variable:
-```bash
-export MCP_MODEL_NAME=deepseek-chat
+  agents:
+    enabled:
+      security: true
+      performance: true
+      style: true
+      test-coverage: true
 ```
 
 ---
 
 ## Polling Monitor
 
-`GitHubApiMonitor` provides a second PR detection path (webhook alternative):
+`GitHubApiMonitor` periodically checks configured repositories for open pull requests:
 
 ```yaml
 review:

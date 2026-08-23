@@ -10,8 +10,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.akj.reviewer.agent.McpReviewAgent;
 import org.akj.reviewer.config.GitHubConfig;
+import org.akj.reviewer.orchestrator.ReviewPipeline;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,7 +28,7 @@ class GitHubApiMonitorTest {
     private SeenPrTracker seenPrTracker;
 
     @Mock
-    private McpReviewAgent mcpReviewAgent;
+    private ReviewPipeline pipeline;
 
     @Mock
     private HttpClient httpClient;
@@ -74,17 +74,17 @@ class GitHubApiMonitorTest {
         doAnswer(invocation -> {
             latch.countDown();
             return null;
-        }).when(mcpReviewAgent).reviewPr("owner/repo", 42);
+        }).when(pipeline).reviewPr("owner/repo", 42);
 
-        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, httpClient, "owner/repo", true);
+        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, pipeline, objectMapper, diffFetcher, httpClient, "owner/repo", true);
         monitor.poll();
 
-        // Wait for virtual thread to invoke the review agent
+        // Wait for virtual thread to invoke the pipeline
         boolean completed = latch.await(2, TimeUnit.SECONDS);
-        assertTrue(completed, "mcpReviewAgent should have been invoked asynchronously");
+        assertTrue(completed, "pipeline should have been invoked asynchronously");
 
         verify(seenPrTracker).markSeen("owner/repo", 42, "sha123456");
-        verify(mcpReviewAgent).reviewPr("owner/repo", 42);
+        verify(pipeline).reviewPr("owner/repo", 42);
     }
 
     @Test
@@ -108,12 +108,12 @@ class GitHubApiMonitorTest {
 
         when(seenPrTracker.hasBeenSeen("owner/repo", 42, "sha123456")).thenReturn(true);
 
-        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, httpClient, "owner/repo", true);
+        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, pipeline, objectMapper, diffFetcher, httpClient, "owner/repo", true);
         monitor.poll();
 
         // Should check, but not trigger agent or mark seen again
         verify(seenPrTracker, never()).markSeen(anyString(), anyInt(), anyString());
-        verify(mcpReviewAgent, never()).reviewPr(anyString(), anyInt());
+        verify(pipeline, never()).reviewPr(anyString(), anyInt());
     }
 
     @Test
@@ -138,11 +138,11 @@ class GitHubApiMonitorTest {
         when(seenPrTracker.hasBeenSeen("owner/repo", 42, "sha123456")).thenReturn(false);
         when(diffFetcher.hasUnresolvedThreads("owner/repo", 42)).thenReturn(true);
 
-        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, mcpReviewAgent, objectMapper, diffFetcher, httpClient, "owner/repo", true);
+        var monitor = new GitHubApiMonitor(gitHubConfig, seenPrTracker, pipeline, objectMapper, diffFetcher, httpClient, "owner/repo", true);
         monitor.poll();
 
         // Should check, but not trigger agent or mark seen because of unresolved comments
         verify(seenPrTracker, never()).markSeen(anyString(), anyInt(), anyString());
-        verify(mcpReviewAgent, never()).reviewPr(anyString(), anyInt());
+        verify(pipeline, never()).reviewPr(anyString(), anyInt());
     }
 }
