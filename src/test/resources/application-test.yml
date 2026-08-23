@@ -1,0 +1,20 @@
+review:
+  # Disable MCP agent so McpConfig / McpReviewAgent are not wired
+  mcp-agent:
+    enabled: false
+  # Disable polling monitor in tests
+  polling:
+    enabled: false
+
+spring:
+  ai:
+    deepseek:
+      api-key: dummy-key-for-tests
+    mcp:
+      client:
+        enabled: false
+        annotation-scanner:
+          enabled: false
+
+github:
+  token: dummy-token-for-tests

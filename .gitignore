@@ -51,16 +51,12 @@ release.properties
 dependency-reduced-pom.xml
 
 # Gradle (detailed)
-.gradle
-gradlew
-gradlew.bat
-gradle/
-*.gradle
+.gradle/
+gradle-app.setting
 
 # Spring Boot
 application-dev.yml
 application-prod.yml
-application-test.yml
 /src/main/resources/application-local.yml
 
 # Test coverage
