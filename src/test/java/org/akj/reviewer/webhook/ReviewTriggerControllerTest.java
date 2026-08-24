@@ -1,18 +1,11 @@
 package org.akj.reviewer.webhook;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.akj.reviewer.agent.AgentContext;
-import org.akj.reviewer.agent.McpReviewAgent;
-import org.akj.reviewer.github.GitHubDiffFetcher;
-import org.akj.reviewer.github.GitHubReviewPoster;
 import org.akj.reviewer.orchestrator.ReviewPipeline;
-import org.akj.reviewer.synthesizer.ReviewResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -23,75 +16,34 @@ import org.springframework.http.ResponseEntity;
 class ReviewTriggerControllerTest {
 
     @Mock
-    private GitHubDiffFetcher diffFetcher;
-
-    @Mock
     private ReviewPipeline pipeline;
 
-    @Mock
-    private GitHubReviewPoster reviewPoster;
-
-    @Mock
-    private McpReviewAgent mcpReviewAgent;
-
     @Test
-    void testTriggerMcpReviewSuccess() throws Exception {
-        var controller = new ReviewTriggerController(diffFetcher, pipeline, reviewPoster, mcpReviewAgent);
+    void testTriggerReviewSuccess() throws Exception {
+        var controller = new ReviewTriggerController(pipeline);
         var request = new ReviewTriggerController.UrlReviewRequest("https://github.com/spring-projects/spring-boot/pull/12345");
 
         CountDownLatch latch = new CountDownLatch(1);
         doAnswer(invocation -> {
             latch.countDown();
             return null;
-        }).when(mcpReviewAgent).reviewPr("spring-projects/spring-boot", 12345);
+        }).when(pipeline).reviewPr("spring-projects/spring-boot", 12345);
 
         ResponseEntity<String> response = controller.reviewPrUrl(request);
 
         assertEquals(200, response.getStatusCode().value());
-        assertTrue(response.getBody().contains("Review triggered successfully"));
+        assertTrue(response.getBody().contains("Review triggered for spring-projects/spring-boot PR #12345"));
 
         // Wait for async execution
         boolean completed = latch.await(2, TimeUnit.SECONDS);
-        assertTrue(completed, "McpReviewAgent should have been called asynchronously");
+        assertTrue(completed, "ReviewPipeline.reviewPr should have been called asynchronously");
 
-        verify(mcpReviewAgent).reviewPr("spring-projects/spring-boot", 12345);
-        verifyNoInteractions(diffFetcher, pipeline, reviewPoster);
-    }
-
-    @Test
-    void testTriggerClassicReviewSuccess() throws Exception {
-        var controller = new ReviewTriggerController(diffFetcher, pipeline, reviewPoster, null);
-        var request = new ReviewTriggerController.UrlReviewRequest("https://github.com/spring-projects/spring-boot/pull/12345");
-
-        var mockContext = mock(AgentContext.class);
-        var mockResult = new ReviewResult("Review content", List.of());
-
-        when(diffFetcher.fetchContext("spring-projects/spring-boot", 12345)).thenReturn(mockContext);
-        when(pipeline.execute(mockContext)).thenReturn(mockResult);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        doAnswer(invocation -> {
-            latch.countDown();
-            return null;
-        }).when(reviewPoster).postReview(eq("spring-projects/spring-boot"), eq(12345), anyString(), anyList());
-
-        ResponseEntity<String> response = controller.reviewPrUrl(request);
-
-        assertEquals(200, response.getStatusCode().value());
-        assertTrue(response.getBody().contains("Review triggered successfully"));
-
-        // Wait for async execution
-        boolean completed = latch.await(2, TimeUnit.SECONDS);
-        assertTrue(completed, "Classic review pipeline should have completed and posted");
-
-        verify(diffFetcher).fetchContext("spring-projects/spring-boot", 12345);
-        verify(pipeline).execute(mockContext);
-        verify(reviewPoster).postReview("spring-projects/spring-boot", 12345, "Review content", List.of());
+        verify(pipeline).reviewPr("spring-projects/spring-boot", 12345);
     }
 
     @Test
     void testRejectsInvalidUrl() {
-        var controller = new ReviewTriggerController(diffFetcher, pipeline, reviewPoster, mcpReviewAgent);
+        var controller = new ReviewTriggerController(pipeline);
 
         // Invalid domain
         var request1 = new ReviewTriggerController.UrlReviewRequest("https://gitlab.com/owner/repo/pull/123");

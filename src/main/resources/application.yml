@@ -63,7 +63,7 @@ review:
   mcp-agent:
     enabled: true
     max-tokens: 8192
-    model: ${MCP_MODEL_NAME:${MODEL_NAME:deepseek-chat}}
+    model: ${MCP_MODEL_NAME:${MODEL_NAME:deepseek-v4-flash}}
   # Background polling monitor settings
   polling:
     enabled: ${POLLING_ENABLED:false}

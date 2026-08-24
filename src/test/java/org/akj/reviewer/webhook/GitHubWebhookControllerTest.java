@@ -43,9 +43,8 @@ class GitHubWebhookControllerTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         when(gitHubConfig.getWebhookSecret()).thenReturn(WEBHOOK_SECRET);
-        // Allow all repos by default
         controller = new GitHubWebhookController(gitHubConfig, objectMapper,
-            diffFetcher, pipeline, reviewPoster, "", false, null);
+            pipeline, diffFetcher, "", false);
     }
 
     @Test
@@ -122,7 +121,7 @@ class GitHubWebhookControllerTest {
 
         // Create controller with specific repo filter
         var filteredController = new GitHubWebhookController(gitHubConfig, objectMapper,
-            diffFetcher, pipeline, reviewPoster, "my-org/my-repo", false, null);
+            pipeline, diffFetcher, "my-org/my-repo", false);
 
         ResponseEntity<String> response = filteredController.handleWebhook(
             signature,
@@ -174,7 +173,7 @@ class GitHubWebhookControllerTest {
         when(diffFetcher.hasUnresolvedThreads("owner/repo", 1)).thenReturn(true);
 
         var skipController = new GitHubWebhookController(gitHubConfig, objectMapper,
-            diffFetcher, pipeline, reviewPoster, "", true, null);
+            pipeline, diffFetcher, "", true);
 
         ResponseEntity<String> response = skipController.handleWebhook(
             signature,

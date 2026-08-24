@@ -1,7 +1,5 @@
 review:
   # Disable MCP agent so McpConfig / McpReviewAgent are not wired
-  mcp-agent:
-    enabled: false
   # Disable polling monitor in tests
   polling:
     enabled: false
@@ -9,7 +7,7 @@ review:
 spring:
   ai:
     deepseek:
-      api-key: dummy-key-for-tests
+      api-key: ${DEEPSEEK_API_KEY:dummy-key-for-tests}
     mcp:
       client:
         enabled: false
@@ -17,4 +15,4 @@ spring:
           enabled: false
 
 github:
-  token: dummy-token-for-tests
+  token: ${GITHUB_TOKEN:dummy-key-for-github}
